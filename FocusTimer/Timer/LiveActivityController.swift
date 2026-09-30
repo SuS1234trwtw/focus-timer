@@ -62,12 +62,14 @@ final class LiveActivityController {
 
         if let current, current.attributes.prompt == prompt {
             activity = current
-            Task { await current.update(content) }
+            let id = current.id
+            Task { await Self.update(activityID: id, with: content) }
             return
         }
         // A new style means new attributes: replace the activity.
         if let current {
-            Task { await current.end(nil, dismissalPolicy: .immediate) }
+            let id = current.id
+            Task { await Self.end(activityID: id) }
         }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         activity = try? Activity.request(attributes: FocusActivityAttributes(prompt: prompt), content: content, pushType: nil)
@@ -77,8 +79,21 @@ final class LiveActivityController {
         lastState = nil
         let current = activity ?? Activity<FocusActivityAttributes>.activities.first
         activity = nil
-        guard let current else { return }
-        Task { await current.end(nil, dismissalPolicy: .immediate) }
+        guard let id = current?.id else { return }
+        Task { await Self.end(activityID: id) }
+    }
+
+    // `Activity` isn't Sendable, so the async calls look it up by id where they run
+    // instead of carrying the main-actor reference across.
+
+    private nonisolated static func update(activityID: String, with content: ActivityContent<FocusActivityAttributes.ContentState>) async {
+        guard let activity = Activity<FocusActivityAttributes>.activities.first(where: { $0.id == activityID }) else { return }
+        await activity.update(content)
+    }
+
+    private nonisolated static func end(activityID: String) async {
+        guard let activity = Activity<FocusActivityAttributes>.activities.first(where: { $0.id == activityID }) else { return }
+        await activity.end(nil, dismissalPolicy: .immediate)
     }
 
     private func saveSnapshot(_ snapshot: TimerSnapshot) {
