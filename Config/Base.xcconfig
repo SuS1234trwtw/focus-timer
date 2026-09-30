@@ -1,0 +1,7 @@
+// Supabase connection. Leave empty to run the app in local-only mode.
+// Put real values in Config/Secrets.xcconfig (gitignored) — see Secrets.xcconfig.example.
+// Note: xcconfig treats "//" as a comment, so we store the host only, not the full URL.
+SUPABASE_HOST =
+SUPABASE_ANON_KEY =
+
+#include? "Secrets.xcconfig"

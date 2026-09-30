@@ -1,0 +1,13 @@
+.DS_Store
+*.xcodeproj/
+*.xcworkspace/
+DerivedData/
+build/
+.swiftpm/
+xcuserdata/
+
+# local secrets
+Config/Secrets.xcconfig
+
+# fetched by scripts/fetch-fonts.sh
+FocusTimer/Resources/Fonts/*.ttf
