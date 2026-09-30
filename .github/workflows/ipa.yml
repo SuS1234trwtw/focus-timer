@@ -54,8 +54,12 @@ jobs:
           test -d "$APP"
           mkdir -p Payload
           cp -R "$APP" Payload/
-          zip -qry FocusTimer.ipa Payload
-          ls -lh FocusTimer.ipa
+          VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Info.plist")
+          BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Info.plist")
+          IPA="FocusTimer-$VERSION-$BUILD.ipa"
+          zip -qry "$IPA" Payload
+          ls -lh "$IPA"
+          echo "IPA=$IPA" >> "$GITHUB_ENV"
           /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c "Print :MinimumOSVersion" "$APP/Info.plist"
 
@@ -63,7 +67,7 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: FocusTimer-ipa
-          path: FocusTimer.ipa
+          path: ${{ env.IPA }}
           if-no-files-found: error
 
       - name: Upload build log

@@ -28,6 +28,7 @@ struct SettingsSheet: View {
                 timerSection
                 styleSection
                 colorSection
+                aboutSection
             }
             .font(Theme.mono(15, relativeTo: .body))
             .foregroundStyle(palette.text)
@@ -188,6 +189,34 @@ struct SettingsSheet: View {
                 .accessibilityLabel("Reset \(title)")
             }
         }
+    }
+
+    // MARK: About
+
+    /// e.g. "1.4.0 (6)", read from the app bundle so it always matches the installed build.
+    private var versionString: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        return "\(version) (\(build))"
+    }
+
+    private var aboutSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(terminalStyle == .cozy ? "$ focus --version" : "PS> (Get-Focus).Version")
+                    .foregroundStyle(palette.dim)
+                Text("focus \(versionString)")
+                    .foregroundStyle(palette.accent)
+                    .textSelection(.enabled)
+            }
+            .font(Theme.mono(13, relativeTo: .footnote))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Version \(versionString)")
+        } header: {
+            header("about")
+        }
+        .listRowBackground(palette.surface)
     }
 
     private func header(_ name: String) -> some View {
