@@ -5,7 +5,7 @@ import OSLog
 import WidgetKit
 
 /// The colours and prompt the Live Activity and widgets draw with, taken from the current palette.
-struct LiveLook: Equatable {
+struct LiveLook: Equatable, Codable {
     var style: String
     var prompt: String
     var accentHex: String
@@ -17,6 +17,16 @@ struct LiveLook: Equatable {
         style: "cozy", prompt: "~/focus $", accentHex: "F5A05A",
         backgroundHex: "1A1614", textHex: "E8DCCF", dimHex: "8A7D72"
     )
+
+    private static let key = "liveActivity.look"
+
+    static var saved: LiveLook? {
+        UserDefaults.standard.data(forKey: key).flatMap { try? JSONDecoder().decode(LiveLook.self, from: $0) }
+    }
+
+    func save() {
+        if let data = try? JSONEncoder().encode(self) { UserDefaults.standard.set(data, forKey: Self.key) }
+    }
 }
 
 /// Keeps one Live Activity (lock screen + Dynamic Island) alive at all times, running or not, and saves
@@ -55,12 +65,9 @@ final class LiveActivityController {
     /// Ends whatever exists and creates a fresh island now (the app must be on screen).
     func restart(engine: PomodoroEngine, look: LiveLook, taskTitle: String?, trackLine: String?) {
         UserDefaults.standard.removeObject(forKey: startedAtKey)
-        for existing in Activity<FocusActivityAttributes>.activities {
-            let id = existing.id
-            Task { await Self.end(activityID: id) }
-        }
-        activity = nil
         lastState = nil
+        // `replace` creates the new island first and only then ends the others, so a refused
+        // request leaves the old one in place instead of nothing.
         update(engine: engine, look: look, taskTitle: taskTitle, trackLine: trackLine, appIsActive: true, forceNew: true)
     }
 
@@ -126,11 +133,8 @@ final class LiveActivityController {
         return Date.now.timeIntervalSince(started) > renewAfter
     }
 
+    /// Creates a new island, and only once that has succeeded ends every other one (including `old`).
     private func replace(_ old: Activity<FocusActivityAttributes>?, with state: FocusActivityAttributes.ContentState, prompt: String) {
-        if let id = old?.id {
-            Task { await Self.end(activityID: id) }
-        }
-        activity = nil
         guard areActivitiesEnabled else {
             lastError = "Live Activities are turned off for Focus in iOS Settings"
             log.error("Live Activities disabled for this app")
@@ -138,13 +142,20 @@ final class LiveActivityController {
         }
         let content = ActivityContent(state: state, staleDate: nil)
         do {
-            activity = try Activity.request(attributes: FocusActivityAttributes(prompt: prompt), content: content, pushType: nil)
+            let created = try Activity.request(attributes: FocusActivityAttributes(prompt: prompt), content: content, pushType: nil)
+            for other in Activity<FocusActivityAttributes>.activities where other.id != created.id {
+                let id = other.id
+                Task { await Self.end(activityID: id) }
+            }
+            activity = created
             lastState = state
             lastError = nil
             lastCreated = .now
             UserDefaults.standard.set(Date.now, forKey: startedAtKey)
             log.info("Live Activity created")
         } catch {
+            // The old island (if any) is still up; keep using it.
+            activity = old
             // Keep the real reason: it's the only way to tell a settings problem from a signing one.
             lastError = "\(String(describing: error)) — \(error.localizedDescription)"
             log.error("Live Activity request failed: \(String(describing: error), privacy: .public)")
@@ -174,7 +185,8 @@ final class LiveActivityController {
     // MARK: Widgets
 
     private func saveSnapshot(_ snapshot: TimerSnapshot) {
-        guard snapshot != lastSnapshot else { return }
+        // Without the App Group the widgets can't read it, so don't spend their reload budget.
+        guard AppGroup.isAvailable, snapshot != lastSnapshot else { return }
         lastSnapshot = snapshot
         snapshot.save()
         WidgetCenter.shared.reloadAllTimelines()

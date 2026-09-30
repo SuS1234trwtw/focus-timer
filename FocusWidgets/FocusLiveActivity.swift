@@ -113,10 +113,17 @@ private struct Countdown: View {
     let state: FocusActivityAttributes.ContentState
 
     var body: some View {
-        if let end = state.endDate, end > .now {
-            Text(timerInterval: Date.now...end, countsDown: true)
-                .monospacedDigit()
-                .multilineTextAlignment(.trailing)
+        // Read the clock once: checking `end > .now` and then building `Date.now...end` can straddle
+        // `end` and produce a backwards range, which traps and blanks the whole island.
+        let now = Date.now
+        if let end = state.endDate {
+            if end > now {
+                Text(timerInterval: now...end, countsDown: true)
+                    .monospacedDigit()
+                    .multilineTextAlignment(.trailing)
+            } else {
+                Text("00:00").monospacedDigit()
+            }
         } else {
             Text(Duration.seconds(state.remaining.rounded(.up)).formatted(.time(pattern: .minuteSecond)))
                 .monospacedDigit()
@@ -197,6 +204,8 @@ private struct Controls: View {
     }
 
     private var toggleTitle: String {
+        // The block ran out while the app was suspended: the next tap starts the next block.
+        if let end = state.endDate, end <= .now { return "start" }
         if state.isRunning { return "pause" }
         return state.hasStarted ? "resume" : "start"
     }

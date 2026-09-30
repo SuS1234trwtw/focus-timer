@@ -341,6 +341,18 @@ struct SettingsSheet: View {
             LabeledContent("live activities", value: live.areActivitiesEnabled ? "allowed" : "turned off")
             // The island is drawn by the widget extension; sideloading can strip it out of the app.
             LabeledContent("island extension", value: hasWidgetExtension ? "installed" : "missing")
+            // How the extension was signed: a mismatch here means iOS ignores it (empty island).
+            let signing = ExtensionSigning.current()
+            LabeledContent("signing", value: signing.verdict)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("app id: \(signing.appID ?? "?")")
+                Text("ext id: \(signing.extensionID ?? "?")")
+                Text("ext profile: \(signing.extensionProfileID ?? "none")")
+                Text("app profile: \(signing.appProfileID ?? "none")")
+            }
+            .font(palette.mono(10, relativeTo: .caption2))
+            .foregroundStyle(palette.dim)
+            .textSelection(.enabled)
             LabeledContent("islands", value: live.activityStates.isEmpty ? "none" : live.activityStates.joined(separator: ", "))
             if let created = live.lastCreated {
                 LabeledContent("created", value: created.formatted(date: .omitted, time: .shortened))

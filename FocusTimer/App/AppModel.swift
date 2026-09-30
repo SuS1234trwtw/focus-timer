@@ -17,7 +17,13 @@ final class AppModel {
 
     /// Kept current by `RootView` so actions triggered outside the UI know what to show.
     var currentTask: (id: UUID, title: String)?
-    var liveLook = LiveLook.placeholder
+    /// Set by `RootView` from the current palette. Until it is, no island is created, so the first
+    /// one isn't built with the placeholder look and then torn down and recreated.
+    /// Saved, so a Dynamic Island button that relaunches the app in the background (no UI, so no
+    /// `RootView`) still pushes the right colours.
+    var liveLook: LiveLook? = LiveLook.saved {
+        didSet { liveLook?.save() }
+    }
     var showTrackInIsland = true
     /// The app is on screen. Only then may a Live Activity be created; starts false because a
     /// Live Activity button can launch the app straight into the background.
@@ -79,9 +85,11 @@ final class AppModel {
     }
 
     func toggle() {
-        // Catch up first: if the block already ended while we were suspended, finish it instead.
+        // The block already ran out while we were suspended (the island shows 00:00 and "start"):
+        // record it, then start the next block, so one tap does what the button says.
         if let segment = engine.tick() {
             finish(segment)
+            start()
             return
         }
         engine.isRunning ? pause() : start()
@@ -127,7 +135,7 @@ final class AppModel {
     func restartLiveActivity() {
         live.restart(
             engine: engine,
-            look: liveLook,
+            look: liveLook ?? .placeholder,
             taskTitle: currentTask?.title,
             trackLine: showTrackInIsland ? spotify.track?.line : nil
         )
@@ -137,10 +145,11 @@ final class AppModel {
     func refreshLiveActivity() {
         live.update(
             engine: engine,
-            look: liveLook,
+            look: liveLook ?? .placeholder,
             taskTitle: currentTask?.title,
             trackLine: showTrackInIsland ? spotify.track?.line : nil,
-            appIsActive: isAppActive
+            // Creating needs the app on screen *and* the real look (so launch order doesn't matter).
+            appIsActive: isAppActive && liveLook != nil
         )
     }
 }

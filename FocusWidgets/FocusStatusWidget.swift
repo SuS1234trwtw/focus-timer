@@ -106,12 +106,13 @@ struct FocusWidgetView: View {
     // MARK: Lock screen
 
     private func circular(_ s: TimerSnapshot) -> some View {
-        Group {
-            if let end = s.endDate, end > .now {
+        let now = Date.now  // one read, so the range below can't come out backwards
+        return Group {
+            if let end = s.endDate, end > now {
                 ProgressView(timerInterval: end.addingTimeInterval(-s.total)...end, countsDown: true) {
                     EmptyView()
                 } currentValueLabel: {
-                    Text(timerInterval: Date.now...end, countsDown: true)
+                    Text(timerInterval: now...end, countsDown: true)
                         .font(.system(size: 11, weight: .semibold, design: .monospaced))
                         .monospacedDigit()
                 }
@@ -155,8 +156,9 @@ struct FocusWidgetView: View {
 
     @ViewBuilder
     private func countdown(_ s: TimerSnapshot) -> some View {
-        if let end = s.endDate, end > .now {
-            Text(timerInterval: Date.now...end, countsDown: true).monospacedDigit()
+        let now = Date.now  // one read, so the range below can't come out backwards
+        if let end = s.endDate, end > now {
+            Text(timerInterval: now...end, countsDown: true).monospacedDigit()
         } else {
             Text(Duration.seconds(s.remaining.rounded(.up)).formatted(.time(pattern: .minuteSecond))).monospacedDigit()
         }
