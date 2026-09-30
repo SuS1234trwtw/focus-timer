@@ -1,65 +1,83 @@
 import SwiftUI
 import UIKit
 
+/// Focus is dark; break inverts to light.
 struct Palette: Equatable {
     let background: Color
-    let surface: Color
-    let border: Color
-    let accent: Color
-    let text: Color
-    let dim: Color
+    /// Face of numerals that aren't lit (idle reel, neighbours).
+    let numeral: Color
+    /// Face of the numeral while the timer runs.
+    let numeralLit: Color
+    /// Readout and icons.
+    let ink: Color
+    let secondary: Color
+    let castShadow: Color
 }
 
 enum Theme {
     static let focus = Palette(
-        background: Color(hex: 0x1A1614),
-        surface: Color(hex: 0x241E1B),
-        border: Color(hex: 0x3A302A),
-        accent: Color(hex: 0xF5A05A),
-        text: Color(hex: 0xE8DCCF),
-        dim: Color(hex: 0x8A7D72)
+        background: Color(hex: 0x141414),
+        numeral: Color(hex: 0x2C2C2C),
+        numeralLit: Color(hex: 0xF4F4F2),
+        ink: Color(hex: 0xF4F4F2),
+        secondary: Color(hex: 0x8C8C8C),
+        castShadow: .black.opacity(0.75)
     )
 
     static let rest = Palette(
-        background: Color(hex: 0x111C17),
-        surface: Color(hex: 0x17261F),
-        border: Color(hex: 0x28402F),
-        accent: Color(hex: 0x8FD694),
-        text: Color(hex: 0xD9E8DD),
-        dim: Color(hex: 0x6F8577)
+        background: Color(hex: 0xECEAE5),
+        numeral: Color(hex: 0xDAD7D0),
+        numeralLit: Color(hex: 0x1C1C1C),
+        ink: Color(hex: 0x161616),
+        secondary: Color(hex: 0x77746E),
+        castShadow: .black.opacity(0.28)
     )
 
     static func palette(for mode: TimerMode) -> Palette {
         mode == .focus ? focus : rest
     }
 
-    enum Weight {
-        case light, regular, bold
+    /// Compressed readout type, like a stopwatch label.
+    static func readout(_ size: CGFloat) -> Font {
+        .system(size: size, weight: .semibold).width(.compressed).monospacedDigit()
+    }
+}
 
-        var postScriptName: String {
-            switch self {
-            case .light: "JetBrainsMono-Light"
-            case .regular: "JetBrainsMono-Regular"
-            case .bold: "JetBrainsMono-Bold"
-            }
-        }
+/// Typeface for the big numerals, chosen in Settings.
+enum TimerFont: String, CaseIterable, Identifiable {
+    case block, hairline, mono, round, serif
 
-        var systemWeight: Font.Weight {
-            switch self {
-            case .light: .light
-            case .regular: .regular
-            case .bold: .bold
-            }
+    var id: String { rawValue }
+
+    var name: String {
+        switch self {
+        case .block: "Block"
+        case .hairline: "Hairline"
+        case .mono: "Mono"
+        case .round: "Round"
+        case .serif: "Serif"
         }
     }
 
-    /// JetBrains Mono when bundled, otherwise the system monospaced face.
-    static func mono(_ size: CGFloat, _ weight: Weight = .regular, relativeTo style: Font.TextStyle = .body) -> Font {
-        if UIFont(name: weight.postScriptName, size: size) != nil {
-            return .custom(weight.postScriptName, size: size, relativeTo: style)
+    func font(size: CGFloat) -> Font {
+        switch self {
+        case .block:
+            .system(size: size, weight: .heavy).width(.compressed)
+        case .hairline:
+            .system(size: size, weight: .ultraLight).width(.condensed)
+        case .mono:
+            UIFont(name: "JetBrainsMono-Bold", size: size) != nil
+                ? .custom("JetBrainsMono-Bold", fixedSize: size)
+                : .system(size: size, weight: .bold, design: .monospaced)
+        case .round:
+            .system(size: size, weight: .bold, design: .rounded)
+        case .serif:
+            .system(size: size, weight: .black, design: .serif)
         }
-        return .system(size: size, weight: weight.systemWeight, design: .monospaced)
     }
+
+    /// Hairline strokes are too thin to extrude convincingly.
+    var extrusion: CGFloat { self == .hairline ? 0.35 : 1 }
 }
 
 extension Color {
@@ -69,5 +87,32 @@ extension Color {
             green: Double((hex >> 8) & 0xFF) / 255,
             blue: Double(hex & 0xFF) / 255
         )
+    }
+}
+
+/// Fine film grain over the background, like the matte surface in the reference.
+struct GrainOverlay: View {
+    @MainActor private static let tile: Image = {
+        let side = 160
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: side, height: side))
+        let image = renderer.image { context in
+            var generator = SystemRandomNumberGenerator()
+            for _ in 0..<7000 {
+                let x = Int.random(in: 0..<side, using: &generator)
+                let y = Int.random(in: 0..<side, using: &generator)
+                UIColor(white: Bool.random(using: &generator) ? 1 : 0, alpha: 0.55).setFill()
+                context.fill(CGRect(x: x, y: y, width: 1, height: 1))
+            }
+        }
+        return Image(uiImage: image)
+    }()
+
+    var body: some View {
+        Self.tile
+            .resizable(resizingMode: .tile)
+            .opacity(0.07)
+            .blendMode(.overlay)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }

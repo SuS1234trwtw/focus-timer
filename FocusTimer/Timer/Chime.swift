@@ -35,20 +35,20 @@ enum TimerNotifier {
         _ = try? await center.requestAuthorization(options: [.alert, .sound])
     }
 
-    static func schedule(at endDate: Date, mode: TimerMode, taskTitle: String?) async {
+    static func schedule(at endDate: Date, mode: TimerMode, taskTitle: String?, sound: Bool) async {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [requestID])
 
         let content = UNMutableNotificationContent()
         switch mode {
         case .focus:
-            content.title = "focus block done"
-            content.body = taskTitle.map { "Nice work on \"\($0)\". Take five." } ?? "Nice work. Take five."
+            content.title = "Focus block done"
+            content.body = taskTitle.map { "Nice work on \"\($0)\". Time for a break." } ?? "Nice work. Time for a break."
         case .rest:
-            content.title = "break's over"
+            content.title = "Break's over"
             content.body = "Back to it."
         }
-        content.sound = UNNotificationSound(named: UNNotificationSoundName("chime.wav"))
+        content.sound = sound ? UNNotificationSound(named: UNNotificationSoundName("chime.wav")) : nil
 
         let interval = max(1, endDate.timeIntervalSinceNow)
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)

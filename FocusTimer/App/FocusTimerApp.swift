@@ -28,9 +28,9 @@ struct FocusTimerApp: App {
         }
         #endif
 
-        // Launch with `-fastTimer` (Xcode scheme argument) for 10s/5s cycles while testing.
+        // Launch with `-fastTimer` (Xcode scheme argument) to make each "minute" one second while testing.
         let fast = ProcessInfo.processInfo.arguments.contains("-fastTimer")
-        _engine = State(initialValue: PomodoroEngine(durations: fast ? .fast : .standard))
+        _engine = State(initialValue: PomodoroEngine(unit: fast ? 1 : 60))
         _sync = State(initialValue: SyncCoordinator(
             context: container.mainContext,
             service: SupabaseService.fromInfoPlist()
@@ -42,7 +42,6 @@ struct FocusTimerApp: App {
             RootView()
                 .environment(engine)
                 .environment(sync)
-                .preferredColorScheme(.dark)
         }
         .modelContainer(container)
     }

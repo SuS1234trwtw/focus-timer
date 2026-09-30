@@ -71,17 +71,31 @@ jobs:
           xcrun simctl boot "$UDID" 2>/dev/null || true
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl status_bar "$UDID" override --time 9:41 --batteryLevel 100 --cellularBars 4
-          xcrun simctl uninstall "$UDID" com.focustimer.app || true
-          xcrun simctl install "$UDID" "$APP"
-          # 1) focus mode with sample tasks
+          fresh() {
+            xcrun simctl terminate "$UDID" com.focustimer.app 2>/dev/null || true
+            xcrun simctl uninstall "$UDID" com.focustimer.app || true
+            xcrun simctl install "$UDID" "$APP"
+          }
+          shot() { xcrun simctl io "$UDID" screenshot "screenshots/$1.png"; }
+
+          # idle reel, focus mode
+          fresh
           xcrun simctl launch "$UDID" com.focustimer.app -seedDemo
-          sleep 8
-          xcrun simctl io "$UDID" screenshot screenshots/1-focus.png
-          # 2) run a 10s focus block to completion -> break mode
+          sleep 8; shot 1-idle
+
+          # running (fast: 1 "minute" = 1s, so 25 lasts 25s), then overtime past zero
           xcrun simctl terminate "$UDID" com.focustimer.app
           xcrun simctl launch "$UDID" com.focustimer.app -fastTimer -autostart
-          sleep 14
-          xcrun simctl io "$UDID" screenshot screenshots/2-break.png
+          sleep 4; shot 2-running
+          sleep 25; shot 3-overtime
+
+          # sheets
+          fresh
+          xcrun simctl launch "$UDID" com.focustimer.app -seedDemo -openSettings
+          sleep 7; shot 4-settings
+          fresh
+          xcrun simctl launch "$UDID" com.focustimer.app -seedDemo -openTasks
+          sleep 7; shot 5-tasks
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v5
