@@ -1,3 +1,4 @@
+import CoreText
 import SwiftUI
 import UIKit
 
@@ -11,6 +12,13 @@ struct Palette: Equatable {
     var style: TerminalStyle = .cozy
     /// Drives the status bar and system controls; flips when a custom background is light.
     var isDark = true
+    var font: TerminalFont = .jetbrains
+
+    /// The terminal font at a given size and weight.
+    @MainActor
+    func mono(_ size: CGFloat, _ weight: Theme.Weight = .regular, relativeTo style: Font.TextStyle = .body) -> Font {
+        font.font(size, weight, relativeTo: style)
+    }
 
     /// Rebuilds the neutral colours around a custom background, keeping text readable on it.
     func withBackground(_ color: Color) -> Palette {
@@ -40,7 +48,16 @@ enum TerminalStyle: String, CaseIterable, Identifiable {
         }
     }
 
+    /// JetBrains Mono for the cozy terminal; Cascadia Mono, Windows Terminal's font, for PowerShell.
+    var defaultFont: TerminalFont { self == .cozy ? .jetbrains : .cascadia }
+
     func basePalette(for mode: TimerMode) -> Palette {
+        var palette = colors(for: mode)
+        palette.font = defaultFont
+        return palette
+    }
+
+    private func colors(for mode: TimerMode) -> Palette {
         switch (self, mode) {
         case (.cozy, .focus):
             Palette(background: Color(hex: 0x1A1614), surface: Color(hex: 0x241E1B), border: Color(hex: 0x3A302A),
@@ -75,6 +92,7 @@ enum TerminalStyle: String, CaseIterable, Identifiable {
 /// The user's look: a terminal style plus optional colours picked on the colour wheel.
 struct Appearance: Equatable {
     var style: TerminalStyle
+    var font: TerminalFont?
     var focusAccent: Color?
     var restAccent: Color?
     var focusBackground: Color?
@@ -88,6 +106,7 @@ struct Appearance: Equatable {
         if let accent = mode == .focus ? focusAccent : restAccent {
             palette.accent = accent
         }
+        if let font { palette.font = font }
         return palette
     }
 }
@@ -113,12 +132,106 @@ enum Theme {
         }
     }
 
-    /// JetBrains Mono when bundled, otherwise the system monospaced face.
+    /// JetBrains Mono, for the few places without a palette at hand.
+    @MainActor
     static func mono(_ size: CGFloat, _ weight: Weight = .regular, relativeTo style: Font.TextStyle = .body) -> Font {
-        if UIFont(name: weight.postScriptName, size: size) != nil {
-            return .custom(weight.postScriptName, size: size, relativeTo: style)
+        TerminalFont.jetbrains.font(size, weight, relativeTo: style)
+    }
+}
+
+/// Monospaced terminal fonts the user can pick per style.
+enum TerminalFont: String, CaseIterable, Identifiable {
+    case jetbrains, cascadia, sfMono, menlo, courier, plex, fira, sourceCode, space, ubuntu, anonymous, shareTech, vt323
+
+    var id: String { rawValue }
+
+    var name: String {
+        switch self {
+        case .jetbrains: "JetBrains Mono"
+        case .cascadia: "Cascadia Mono"
+        case .sfMono: "SF Mono"
+        case .menlo: "Menlo"
+        case .courier: "Courier New"
+        case .plex: "IBM Plex Mono"
+        case .fira: "Fira Mono"
+        case .sourceCode: "Source Code Pro"
+        case .space: "Space Mono"
+        case .ubuntu: "Ubuntu Mono"
+        case .anonymous: "Anonymous Pro"
+        case .shareTech: "Share Tech Mono"
+        case .vt323: "VT323"
         }
-        return .system(size: size, weight: weight.systemWeight, design: .monospaced)
+    }
+
+    private enum Source {
+        /// Bundled TTFs by file name; missing weights fall back to regular.
+        case bundled(light: String?, regular: String, bold: String?)
+        /// Fonts that ship with iOS, by PostScript name.
+        case installed(regular: String, bold: String)
+        /// The system monospaced design (SF Mono).
+        case system
+    }
+
+    private var source: Source {
+        switch self {
+        case .jetbrains: .bundled(light: "JetBrainsMono-Light", regular: "JetBrainsMono-Regular", bold: "JetBrainsMono-Bold")
+        case .cascadia: .bundled(light: "CascadiaMono-Light", regular: "CascadiaMono-Regular", bold: "CascadiaMono-Bold")
+        case .sfMono: .system
+        case .menlo: .installed(regular: "Menlo-Regular", bold: "Menlo-Bold")
+        case .courier: .installed(regular: "CourierNewPSMT", bold: "CourierNewPS-BoldMT")
+        case .plex: .bundled(light: "IBMPlexMono-Light", regular: "IBMPlexMono-Regular", bold: "IBMPlexMono-Bold")
+        case .fira: .bundled(light: nil, regular: "FiraMono-Regular", bold: "FiraMono-Bold")
+        case .sourceCode: .bundled(light: "SourceCodePro-Light", regular: "SourceCodePro-Regular", bold: "SourceCodePro-Bold")
+        case .space: .bundled(light: nil, regular: "SpaceMono-Regular", bold: "SpaceMono-Bold")
+        case .ubuntu: .bundled(light: nil, regular: "UbuntuMono-Regular", bold: "UbuntuMono-Bold")
+        case .anonymous: .bundled(light: nil, regular: "AnonymousPro-Regular", bold: "AnonymousPro-Bold")
+        case .shareTech: .bundled(light: nil, regular: "ShareTechMono-Regular", bold: nil)
+        case .vt323: .bundled(light: nil, regular: "VT323-Regular", bold: nil)
+        }
+    }
+
+    @MainActor
+    func font(_ size: CGFloat, _ weight: Theme.Weight, relativeTo style: Font.TextStyle) -> Font {
+        let fallback = Font.system(size: size, weight: weight.systemWeight, design: .monospaced)
+        switch source {
+        case .system:
+            return fallback
+        case let .installed(regular, bold):
+            let name = weight == .bold ? bold : regular
+            return UIFont(name: name, size: size) != nil ? .custom(name, size: size, relativeTo: style) : fallback
+        case let .bundled(light, regular, bold):
+            let file: String
+            switch weight {
+            case .light: file = light ?? regular
+            case .regular: file = regular
+            case .bold: file = bold ?? regular
+            }
+            guard let name = FontRegistry.postScriptName(forFile: file) else { return fallback }
+            return .custom(name, size: size, relativeTo: style)
+        }
+    }
+}
+
+/// Registers the bundled fonts at launch and remembers each file's PostScript name,
+/// read from the font itself so nothing depends on hand-typed names.
+@MainActor
+enum FontRegistry {
+    private static var names: [String: String] = [:]
+
+    static func registerBundledFonts() {
+        for url in Bundle.main.urls(forResourcesWithExtension: "ttf", subdirectory: nil) ?? [] {
+            guard
+                let provider = CGDataProvider(url: url as CFURL),
+                let font = CGFont(provider),
+                let postScriptName = font.postScriptName as String?
+            else { continue }
+            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+            names[url.deletingPathExtension().lastPathComponent] = postScriptName
+        }
+    }
+
+    static func postScriptName(forFile file: String) -> String? {
+        names[file]
     }
 }
 

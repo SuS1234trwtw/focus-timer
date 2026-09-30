@@ -15,7 +15,7 @@ struct TimerView: View {
             modeTabs
 
             Text(engine.remaining.clockString)
-                .font(Theme.mono(96, .light, relativeTo: .largeTitle))
+                .font(palette.mono(96, .light, relativeTo: .largeTitle))
                 .monospacedDigit()
                 .foregroundStyle(palette.text)
                 .lineLimit(1)
@@ -27,7 +27,7 @@ struct TimerView: View {
             AsciiProgressBar(progress: engine.progress, palette: palette)
 
             Text(focusLine)
-                .font(Theme.mono(13, relativeTo: .footnote))
+                .font(palette.mono(13, relativeTo: .footnote))
                 .foregroundStyle(palette.dim)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -57,7 +57,7 @@ struct TimerView: View {
                     onSwitch(mode)
                 } label: {
                     Text(selected ? "[\(mode.label.lowercased())]" : " \(mode.label.lowercased()) ")
-                        .font(Theme.mono(14, selected ? .bold : .regular, relativeTo: .subheadline))
+                        .font(palette.mono(14, selected ? .bold : .regular, relativeTo: .subheadline))
                         .foregroundStyle(selected ? palette.accent : palette.dim)
                 }
                 .buttonStyle(.plain)
@@ -70,11 +70,11 @@ struct TimerView: View {
     private var controls: some View {
         GlassEffectContainer(spacing: 12) {
             HStack(spacing: 12) {
-                ControlButton(title: "start", systemImage: "play.fill", tint: palette.accent, prominent: true, action: onStart)
+                ControlButton(title: "start", systemImage: "play.fill", palette: palette, prominent: true, action: onStart)
                     .disabled(engine.isRunning)
-                ControlButton(title: "pause", systemImage: "pause.fill", tint: palette.accent, prominent: false, action: onPause)
+                ControlButton(title: "pause", systemImage: "pause.fill", palette: palette, prominent: false, action: onPause)
                     .disabled(!engine.isRunning)
-                ControlButton(title: "reset", systemImage: "arrow.counterclockwise", tint: palette.accent, prominent: false, action: onReset)
+                ControlButton(title: "reset", systemImage: "arrow.counterclockwise", palette: palette, prominent: false, action: onReset)
             }
         }
     }
@@ -83,21 +83,21 @@ struct TimerView: View {
 private struct ControlButton: View {
     let title: String
     let systemImage: String
-    let tint: Color
+    let palette: Palette
     let prominent: Bool
     let action: () -> Void
 
     var body: some View {
         let label = Label(title, systemImage: systemImage)
-            .font(Theme.mono(15, .bold, relativeTo: .body))
+            .font(palette.mono(15, .bold, relativeTo: .body))
             .frame(maxWidth: .infinity, minHeight: 30)
 
         if prominent {
-            Button(action: action) { label.foregroundStyle(Color(hex: 0x1A1614)) }
+            Button(action: action) { label.foregroundStyle(palette.accent.isDark ? Color(hex: 0xF5F5F5) : Color(hex: 0x1A1614)) }
                 .buttonStyle(.glassProminent)
-                .tint(tint)
+                .tint(palette.accent)
         } else {
-            Button(action: action) { label.foregroundStyle(tint) }
+            Button(action: action) { label.foregroundStyle(palette.accent) }
                 .buttonStyle(.glass)
         }
     }
@@ -118,7 +118,7 @@ private struct AsciiProgressBar: View {
             Text("]").foregroundStyle(palette.dim)
             Text(String(format: " %3ld%%", Int(progress * 100))).foregroundStyle(palette.dim)
         }
-        .font(Theme.mono(13, relativeTo: .footnote))
+        .font(palette.mono(13, relativeTo: .footnote))
         .lineLimit(1)
         .minimumScaleFactor(0.7)
         .accessibilityHidden(true)

@@ -14,6 +14,12 @@ struct SettingsSheet: View {
     @AppStorage("restAccentHex") private var restAccentHex = ""
     @AppStorage("focusBackgroundHex") private var focusBackgroundHex = ""
     @AppStorage("restBackgroundHex") private var restBackgroundHex = ""
+    @AppStorage("fontCozy") private var fontCozy: TerminalFont = .jetbrains
+    @AppStorage("fontPowershell") private var fontPowershell: TerminalFont = .cascadia
+    @AppStorage(Feedback.Key.sounds) private var soundsEnabled = true
+    @AppStorage(Feedback.Key.haptics) private var hapticsEnabled = true
+    @AppStorage(Feedback.Key.tickSound) private var tickSound = true
+    @AppStorage(Feedback.Key.tickHaptics) private var tickHaptics = true
 
     private struct Preset: Hashable {
         let focus: Int
@@ -27,10 +33,12 @@ struct SettingsSheet: View {
             Form {
                 timerSection
                 styleSection
+                fontSection
                 colorSection
+                feedbackSection
                 aboutSection
             }
-            .font(Theme.mono(15, relativeTo: .body))
+            .font(palette.mono(15, relativeTo: .body))
             .foregroundStyle(palette.text)
             .tint(palette.accent)
             .scrollContentBackground(.hidden)
@@ -46,7 +54,12 @@ struct SettingsSheet: View {
         .presentationDetents([.medium, .large])
         .presentationBackground(palette.background)
         .preferredColorScheme(palette.isDark ? .dark : .light)
-        .sensoryFeedback(.selection, trigger: terminalStyle)
+        // A soft key click for every change made here.
+        .onChange(of: terminalStyle) { Feedback.play(.tap) }
+        .onChange(of: [focusMinutes, restMinutes]) { Feedback.play(.tap) }
+        .onChange(of: [fontCozy, fontPowershell]) { Feedback.play(.tap) }
+        .onChange(of: [focusAccentHex, restAccentHex, focusBackgroundHex, restBackgroundHex]) { Feedback.play(.tap) }
+        .onChange(of: [soundsEnabled, hapticsEnabled, tickSound, tickHaptics]) { Feedback.play(.tap) }
     }
 
     // MARK: Timer
@@ -67,7 +80,7 @@ struct SettingsSheet: View {
                         restMinutes = preset.rest
                     } label: {
                         Text("\(preset.focus)/\(preset.rest)")
-                            .font(Theme.mono(13, selected ? .bold : .regular, relativeTo: .footnote))
+                            .font(palette.mono(13, selected ? .bold : .regular, relativeTo: .footnote))
                             .foregroundStyle(selected ? palette.background : palette.text)
                             .frame(maxWidth: .infinity, minHeight: 34)
                             .background(selected ? palette.accent : palette.border.opacity(0.5), in: .rect(cornerRadius: 6))
@@ -80,7 +93,7 @@ struct SettingsSheet: View {
             header("timer")
         } footer: {
             Text("An idle timer updates right away; a running block keeps its time and the change applies next block.")
-                .font(Theme.mono(11, relativeTo: .caption))
+                .font(palette.mono(11, relativeTo: .caption))
                 .foregroundStyle(palette.dim)
         }
         .listRowBackground(palette.surface)
@@ -114,11 +127,11 @@ struct SettingsSheet: View {
                     Text(style.promptSymbol).foregroundStyle(preview.dim)
                     Text(style.cursor).foregroundStyle(preview.accent)
                 }
-                .font(Theme.mono(12, .bold, relativeTo: .caption))
+                .font(preview.mono(12, .bold, relativeTo: .caption))
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 Text(style.name)
-                    .font(Theme.mono(13, selected ? .bold : .regular, relativeTo: .footnote))
+                    .font(preview.mono(13, selected ? .bold : .regular, relativeTo: .footnote))
                     .foregroundStyle(preview.text)
             }
             .padding(12)
@@ -133,6 +146,83 @@ struct SettingsSheet: View {
         .buttonStyle(.plain)
         .accessibilityLabel("\(style.name) style")
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    // MARK: Font
+
+    /// The font for the current style; each style remembers its own.
+    private var selectedFont: Binding<TerminalFont> {
+        terminalStyle == .cozy ? $fontCozy : $fontPowershell
+    }
+
+    private var fontSection: some View {
+        Section {
+            ForEach(TerminalFont.allCases) { font in
+                fontRow(font)
+            }
+            if selectedFont.wrappedValue != terminalStyle.defaultFont {
+                Button("use \(terminalStyle.defaultFont.name) (default)", systemImage: "arrow.counterclockwise") {
+                    selectedFont.wrappedValue = terminalStyle.defaultFont
+                }
+                .foregroundStyle(palette.accent)
+            }
+        } header: {
+            header("font")
+        } footer: {
+            Text("Each style keeps its own font. Switch style to set the other one.")
+                .font(palette.mono(11, relativeTo: .caption))
+                .foregroundStyle(palette.dim)
+        }
+        .listRowBackground(palette.surface)
+    }
+
+    private func fontRow(_ font: TerminalFont) -> some View {
+        let selected = font == selectedFont.wrappedValue
+        return Button {
+            selectedFont.wrappedValue = font
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(font.name)
+                        .font(font.font(15, .bold, relativeTo: .body))
+                        .foregroundStyle(selected ? palette.accent : palette.text)
+                    Text("\(terminalStyle.promptPath)\(terminalStyle.promptSymbol)25:00 0Oo1lI")
+                        .font(font.font(12, .regular, relativeTo: .caption))
+                        .foregroundStyle(palette.dim)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                if selected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(palette.accent)
+                }
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(font.name)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    // MARK: Feedback
+
+    private var feedbackSection: some View {
+        Section {
+            Toggle("sounds", isOn: $soundsEnabled)
+            Toggle("haptics", isOn: $hapticsEnabled)
+            Toggle("tick sound", isOn: $tickSound)
+                .disabled(!soundsEnabled)
+            Toggle("tick haptics", isOn: $tickHaptics)
+                .disabled(!hapticsEnabled)
+        } header: {
+            header("feedback")
+        } footer: {
+            Text("Clicks and beeps for start, pause, reset, tasks and settings, plus a tick every second while running. Sounds follow the silent switch; the end-of-block chime doesn't.")
+                .font(palette.mono(11, relativeTo: .caption))
+                .foregroundStyle(palette.dim)
+        }
+        .listRowBackground(palette.surface)
     }
 
     // MARK: Colours
@@ -158,7 +248,7 @@ struct SettingsSheet: View {
             header("colours")
         } footer: {
             Text("Tap a swatch to open the colour wheel. Text adjusts automatically on light backgrounds.")
-                .font(Theme.mono(11, relativeTo: .caption))
+                .font(palette.mono(11, relativeTo: .caption))
                 .foregroundStyle(palette.dim)
         }
         .listRowBackground(palette.surface)
@@ -210,7 +300,7 @@ struct SettingsSheet: View {
                     .foregroundStyle(palette.accent)
                     .textSelection(.enabled)
             }
-            .font(Theme.mono(13, relativeTo: .footnote))
+            .font(palette.mono(13, relativeTo: .footnote))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Version \(versionString)")
         } header: {
@@ -221,7 +311,7 @@ struct SettingsSheet: View {
 
     private func header(_ name: String) -> some View {
         Text(terminalStyle == .cozy ? "# \(name)" : "## \(name.capitalized)")
-            .font(Theme.mono(12, .bold, relativeTo: .caption))
+            .font(palette.mono(12, .bold, relativeTo: .caption))
             .foregroundStyle(palette.accent)
     }
 }

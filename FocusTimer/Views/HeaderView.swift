@@ -27,7 +27,7 @@ struct HeaderView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Settings")
             }
-            .font(Theme.mono(17, .bold, relativeTo: .headline))
+            .font(palette.mono(17, .bold, relativeTo: .headline))
             .lineLimit(1)
             .minimumScaleFactor(0.7)
 
@@ -42,7 +42,7 @@ struct HeaderView: View {
                 Text(syncLabel)
                     .foregroundStyle(syncStatus == .offline ? Color(hex: 0xE0786A) : palette.dim)
             }
-            .font(Theme.mono(12, relativeTo: .caption))
+            .font(palette.mono(12, relativeTo: .caption))
         }
         .accessibilityElement(children: .contain)
     }

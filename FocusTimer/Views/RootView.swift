@@ -17,13 +17,15 @@ struct RootView: View {
     @AppStorage("restAccentHex") private var restAccentHex = ""
     @AppStorage("focusBackgroundHex") private var focusBackgroundHex = ""
     @AppStorage("restBackgroundHex") private var restBackgroundHex = ""
+    @AppStorage("fontCozy") private var fontCozy: TerminalFont = .jetbrains
+    @AppStorage("fontPowershell") private var fontPowershell: TerminalFont = .cascadia
 
-    @State private var chimeCount = 0
     @State private var showSettings = false
 
     private var appearance: Appearance {
         Appearance(
             style: terminalStyle,
+            font: terminalStyle == .cozy ? fontCozy : fontPowershell,
             focusAccent: Color(hexString: focusAccentHex),
             restAccent: Color(hexString: restAccentHex),
             focusBackground: Color(hexString: focusBackgroundHex),
@@ -72,7 +74,6 @@ struct RootView: View {
         .animation(.easeInOut(duration: 1.2), value: engine.mode)
         .animation(.easeInOut(duration: 0.4), value: appearance)
         .preferredColorScheme(palette.isDark ? .dark : .light)
-        .sensoryFeedback(.success, trigger: chimeCount)
         .sheet(isPresented: $showSettings) { SettingsSheet(palette: palette) }
         .onChange(of: [focusMinutes, restMinutes]) { _, minutes in
             guard !ProcessInfo.processInfo.arguments.contains("-fastTimer") else { return }
@@ -107,6 +108,7 @@ struct RootView: View {
     private func start() {
         engine.start()
         guard let endDate = engine.endDate else { return }
+        Feedback.play(.start)
         let mode = engine.mode
         let title = activeTask?.title
         Task {
@@ -117,23 +119,37 @@ struct RootView: View {
 
     private func pause() {
         engine.pause()
+        Feedback.play(.pause)
         TimerNotifier.cancel()
     }
 
     private func reset() {
         engine.reset()
+        Feedback.play(.reset)
         TimerNotifier.cancel()
     }
 
     private func switchMode(_ mode: TimerMode) {
         engine.switchMode(to: mode)
+        Feedback.play(.switch)
         TimerNotifier.cancel()
     }
 
     private func runClock() async {
+        var lastSecond: Int?
         while !Task.isCancelled {
             if let segment = engine.tick() { finish(segment) }
-            try? await Task.sleep(for: .milliseconds(200))
+            // One tick per whole second while running; a firmer one as each minute rolls over.
+            if engine.isRunning {
+                let second = Int(engine.remaining.rounded(.up))
+                if let lastSecond, second != lastSecond, second > 0 {
+                    Feedback.play(second % 60 == 0 ? .minute : .tick)
+                }
+                lastSecond = second
+            } else {
+                lastSecond = nil
+            }
+            try? await Task.sleep(for: .milliseconds(100))
         }
     }
 
@@ -141,7 +157,7 @@ struct RootView: View {
         // If the app was in the background, the scheduled notification already rang.
         if segment.lateBy < 3 {
             ChimePlayer.shared.play()
-            chimeCount += 1
+            Feedback.play(.complete)
         }
         sync.record(segment, taskID: segment.mode == .focus ? activeTask?.id : nil)
     }

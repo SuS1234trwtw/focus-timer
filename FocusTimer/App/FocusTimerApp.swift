@@ -8,6 +8,8 @@ struct FocusTimerApp: App {
     @State private var sync: SyncCoordinator
 
     init() {
+        FontRegistry.registerBundledFonts()
+        Feedback.prepare()
         let container: ModelContainer
         do {
             container = try ModelContainer(for: TaskItem.self, FocusSessionRecord.self)

@@ -24,13 +24,13 @@ struct TaskListView: View {
                     .foregroundStyle(palette.dim)
                     .contentTransition(.numericText())
             }
-            .font(Theme.mono(13, .bold, relativeTo: .footnote))
+            .font(palette.mono(13, .bold, relativeTo: .footnote))
 
             input
 
             if tasks.isEmpty {
                 Text(palette.style.emptyTasks)
-                    .font(Theme.mono(13, relativeTo: .footnote))
+                    .font(palette.mono(13, relativeTo: .footnote))
                     .foregroundStyle(palette.dim)
                     .padding(.vertical, 8)
             }
@@ -40,9 +40,18 @@ struct TaskListView: View {
                     task: task,
                     isActive: task.id == activeID,
                     palette: palette,
-                    onToggleDone: { mutate { TaskActions.toggleDone(task) } },
-                    onToggleActive: { mutate { TaskActions.toggleActive(task, among: tasks) } },
-                    onDelete: { mutate { TaskActions.delete(task) } }
+                    onToggleDone: {
+                        Feedback.play(task.isDone ? .taskUndo : .taskDone)
+                        mutate { TaskActions.toggleDone(task) }
+                    },
+                    onToggleActive: {
+                        Feedback.play(.taskFocus)
+                        mutate { TaskActions.toggleActive(task, among: tasks) }
+                    },
+                    onDelete: {
+                        Feedback.play(.taskDelete)
+                        mutate { TaskActions.delete(task) }
+                    }
                 )
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
@@ -68,7 +77,7 @@ struct TaskListView: View {
                 .accessibilityLabel("Add task")
             }
         }
-        .font(Theme.mono(16, relativeTo: .body))
+        .font(palette.mono(16, relativeTo: .body))
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .background(palette.surface.opacity(0.55), in: .rect(cornerRadius: 8))
@@ -76,6 +85,8 @@ struct TaskListView: View {
     }
 
     private func add() {
+        guard !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        Feedback.play(.taskAdd)
         mutate { TaskActions.add(draft, in: context) }
         draft = ""
         inputFocused = true
@@ -130,7 +141,7 @@ private struct TaskRow: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Delete \(task.title)")
         }
-        .font(Theme.mono(15, isActive ? .bold : .regular, relativeTo: .body))
+        .font(palette.mono(15, isActive ? .bold : .regular, relativeTo: .body))
         .padding(.leading, 14)
         .padding(.trailing, 8)
         .padding(.vertical, 10)
