@@ -1,69 +1,14 @@
 import SwiftUI
 
-/// A numeral that reads as a carved, extruded block: soft cast shadow, a stepped side
-/// extrusion toward the bottom-right, and a bevelled face lit from the top-left.
-struct ChiseledNumeral: View {
-    let text: String
-    let font: Font
-    let face: Color
-    let lit: Bool
-    let palette: Palette
-    /// Extrusion depth in points.
-    let depth: CGFloat
-
-    private let layers = 6
-
-    var body: some View {
-        let glyph = Text(text).font(font).lineLimit(1).minimumScaleFactor(0.25)
-        let side = face.mix(with: .black, by: lit ? 0.35 : 0.5)
-
-        ZStack {
-            glyph
-                .foregroundStyle(palette.castShadow)
-                .offset(x: depth * 1.6, y: depth * 2.4)
-                .blur(radius: depth * 1.4)
-
-            ForEach(1...layers, id: \.self) { step in
-                glyph
-                    .foregroundStyle(side)
-                    .offset(x: depth * CGFloat(step) / CGFloat(layers), y: depth * CGFloat(step) / CGFloat(layers))
-            }
-
-            glyph.foregroundStyle(
-                LinearGradient(
-                    colors: [face.mix(with: .white, by: lit ? 0.0 : 0.1), face, face.mix(with: .black, by: 0.22)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .shadow(.inner(color: .white.opacity(lit ? 0.9 : 0.16), radius: 1.2, x: -2, y: -2))
-                .shadow(.inner(color: .black.opacity(lit ? 0.3 : 0.5), radius: 3, x: 3, y: 3))
-            )
-        }
-        .compositingGroup()
-    }
-}
-
-/// One big numeral in the chosen typeface: carved glyphs from Figma, or a font with the chiseled treatment.
+/// One big carved numeral in the chosen family, toned for the theme and lit state.
 struct NumeralFace: View {
     let text: String
     let font: TimerFont
     let lit: Bool
     let palette: Palette
-    let height: CGFloat
 
     var body: some View {
-        if font == .carved, CarvedGlyphSet.shared.supports(text) {
-            CarvedNumeral(text: text, tone: palette.carvedTone(lit: lit), castShadow: palette.castShadow)
-        } else {
-            ChiseledNumeral(
-                text: text,
-                font: font.font(size: height * 0.98),
-                face: lit ? palette.numeralLit : palette.numeral,
-                lit: lit,
-                palette: palette,
-                depth: height * 0.022 * font.extrusion
-            )
-        }
+        CarvedNumeral(text: text, font: font, tone: palette.carvedTone(lit: lit), castShadow: palette.castShadow)
     }
 }
 
@@ -84,7 +29,7 @@ struct NumeralReel: View {
                 LazyVStack(spacing: 0) {
                     ForEach(values, id: \.self) { value in
                         let lit = value == litValue
-                        NumeralFace(text: "\(value)", font: font, lit: lit, palette: palette, height: itemHeight)
+                        NumeralFace(text: "\(value)", font: font, lit: lit, palette: palette)
                         .padding(.horizontal, 22)
                         .frame(maxWidth: .infinity)
                         .frame(height: itemHeight)
@@ -144,7 +89,7 @@ struct StartBurst: View {
                 } keyframes: { _ in
                     KeyframeTrack {
                         LinearKeyframe(0.0, duration: 0.001)
-                        CubicKeyframe(1.0, duration: 0.7)
+                        CubicKeyframe(1.0, duration: 0.5)
                     }
                 }
                 .allowsHitTesting(false)

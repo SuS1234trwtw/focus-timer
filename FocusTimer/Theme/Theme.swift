@@ -4,9 +4,7 @@ import UIKit
 /// Focus is dark; break inverts to light.
 struct Palette: Equatable {
     let background: Color
-    /// Face of numerals that aren't lit (idle reel, neighbours).
-    let numeral: Color
-    /// Face of the numeral while the timer runs.
+    /// Bright accent for the start burst.
     let numeralLit: Color
     /// Readout and icons.
     let ink: Color
@@ -22,7 +20,6 @@ struct Palette: Equatable {
 enum Theme {
     static let focus = Palette(
         background: Color(hex: 0x141414),
-        numeral: Color(hex: 0x2C2C2C),
         numeralLit: Color(hex: 0xF4F4F2),
         ink: Color(hex: 0xF4F4F2),
         secondary: Color(hex: 0x8C8C8C),
@@ -33,7 +30,6 @@ enum Theme {
 
     static let rest = Palette(
         background: Color(hex: 0xECEAE5),
-        numeral: Color(hex: 0xDAD7D0),
         numeralLit: Color(hex: 0x1C1C1C),
         ink: Color(hex: 0x161616),
         secondary: Color(hex: 0x77746E),
@@ -52,43 +48,23 @@ enum Theme {
     }
 }
 
-/// Typeface for the big numerals, chosen in Settings.
+/// Carved numeral family for the big numbers, chosen in Settings.
+/// Raw values match the family keys in CarvedGlyphs.json.
 enum TimerFont: String, CaseIterable, Identifiable {
-    case carved, block, hairline, mono, round, serif
+    case carved, heavy, hairline, block, soft, lean
 
     var id: String { rawValue }
 
     var name: String {
         switch self {
         case .carved: "Carved"
-        case .block: "Block"
+        case .heavy: "Heavy"
         case .hairline: "Hairline"
-        case .mono: "Mono"
-        case .round: "Round"
-        case .serif: "Serif"
+        case .block: "Block"
+        case .soft: "Soft"
+        case .lean: "Lean"
         }
     }
-
-    func font(size: CGFloat) -> Font {
-        switch self {
-        case .carved, .block:
-            // Carved draws its own glyphs; this is only its fallback for characters it lacks.
-            .system(size: size, weight: .heavy).width(.compressed)
-        case .hairline:
-            .system(size: size, weight: .ultraLight).width(.condensed)
-        case .mono:
-            UIFont(name: "JetBrainsMono-Bold", size: size) != nil
-                ? .custom("JetBrainsMono-Bold", fixedSize: size)
-                : .system(size: size, weight: .bold, design: .monospaced)
-        case .round:
-            .system(size: size, weight: .bold, design: .rounded)
-        case .serif:
-            .system(size: size, weight: .black, design: .serif)
-        }
-    }
-
-    /// Hairline strokes are too thin to extrude convincingly.
-    var extrusion: CGFloat { self == .hairline ? 0.35 : 1 }
 }
 
 extension Color {
@@ -103,7 +79,7 @@ extension Color {
 
 /// Fine film grain over the background, like the matte surface in the reference.
 struct GrainOverlay: View {
-    @MainActor private static let tile: Image = {
+    @MainActor static let tile: Image = {
         let side = 160
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: side, height: side))
         let image = renderer.image { context in

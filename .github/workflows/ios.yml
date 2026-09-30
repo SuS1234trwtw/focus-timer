@@ -26,9 +26,6 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
-      - name: Fetch fonts
-        run: ./scripts/fetch-fonts.sh
-
       - name: Generate Xcode project
         run: xcodegen generate
 

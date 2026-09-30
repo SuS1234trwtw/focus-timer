@@ -7,6 +7,7 @@ struct SettingsSheet: View {
 
     @AppStorage("timerFont") private var timerFont: TimerFont = .carved
     @AppStorage("chimeEnabled") private var chimeEnabled = true
+    @AppStorage("tickHaptics") private var tickHaptics = true
 
     var body: some View {
         NavigationStack {
@@ -39,6 +40,9 @@ struct SettingsSheet: View {
 
                 Section {
                     Toggle("Chime at zero", isOn: $chimeEnabled)
+                    Toggle("Tick haptics", isOn: $tickHaptics)
+                } footer: {
+                    Text("A soft tick every second while the timer runs, and a firmer one each minute.")
                 }
 
                 Section("Today") {
@@ -64,17 +68,8 @@ struct SettingsSheet: View {
             withAnimation(.snappy) { timerFont = option }
         } label: {
             VStack(spacing: 6) {
-                Group {
-                    if option == .carved {
-                        CarvedNumeral(text: "25", tone: Theme.focus.carvedLit, castShadow: .black.opacity(0.4))
-                    } else {
-                        Text("25")
-                            .font(option.font(size: 44))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.5)
-                    }
-                }
-                .frame(width: 76, height: 58)
+                CarvedNumeral(text: "25", font: option, tone: Theme.focus.carvedLit, castShadow: .black.opacity(0.4))
+                    .frame(width: 76, height: 58)
                 Text(option.name)
                     .font(.caption.weight(selected ? .semibold : .regular))
                     .foregroundStyle(selected ? .primary : .secondary)

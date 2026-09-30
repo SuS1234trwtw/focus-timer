@@ -19,10 +19,10 @@ FocusTimer/                 app source
   Tasks/                    SwiftData models, task actions, TasksSheet
   Sync/                     SupabaseService, SyncCoordinator (push/pull, last-write-wins)
   Views/                    RootView, SettingsSheet
-  Resources/                CarvedGlyphs.json, AppIcon.icon (Liquid Glass layers), chime.wav, Fonts/ (fetched)
+  Resources/                CarvedGlyphs.json, AppIcon.icon (Liquid Glass layers), chime.wav
 FocusTimerTests/            Swift Testing: engine + sync merge
 supabase/migrations/        database schema + RLS policies
-scripts/                    carved_glyphs.mjs (numeral model), fetch-fonts.sh, generate_assets.py (chime)
+scripts/                    carved_model.js + carved_glyphs.mjs (numeral model), generate_assets.py (chime)
 .github/workflows/ios.yml   CI: build + test on a macOS runner
 ```
 
@@ -44,7 +44,6 @@ Without these values the app runs in local-only mode (status line shows `○ loc
 
 ```bash
 brew install xcodegen
-./scripts/fetch-fonts.sh
 cp Config/Secrets.xcconfig.example Config/Secrets.xcconfig   # then fill it in
 xcodegen generate
 open FocusTimer.xcodeproj

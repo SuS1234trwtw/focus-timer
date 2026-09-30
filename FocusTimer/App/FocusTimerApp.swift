@@ -21,9 +21,10 @@ struct FocusTimerApp: App {
         if ProcessInfo.processInfo.arguments.contains("-seedDemo"),
            (try? container.mainContext.fetchCount(FetchDescriptor<TaskItem>())) == 0 {
             let context = container.mainContext
-            context.insert(TaskItem(title: "wire up supabase sync", isActive: true, createdAt: .now.addingTimeInterval(-30)))
-            context.insert(TaskItem(title: "review the timer PR", isDone: true, createdAt: .now.addingTimeInterval(-20)))
-            context.insert(TaskItem(title: "inbox zero", createdAt: .now.addingTimeInterval(-10)))
+            context.insert(TaskItem(title: "Wire up Supabase sync", sortIndex: 0))
+            context.insert(TaskItem(title: "Inbox zero", sortIndex: 1))
+            context.insert(TaskItem(title: "Plan tomorrow", sortIndex: 2))
+            context.insert(TaskItem(title: "Review the timer PR", isDone: true, sortIndex: 3))
             try? context.save()
         }
         #endif
