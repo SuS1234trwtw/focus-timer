@@ -44,8 +44,8 @@ struct TimerView: View {
 
     private var focusLine: String {
         switch engine.mode {
-        case .focus: "> focusing on: \(activeTaskTitle ?? "—")"
-        case .rest: "> stretch. hydrate. look away."
+        case .focus: "\(palette.style.linePrefix)focusing on: \(activeTaskTitle ?? "—")"
+        case .rest: "\(palette.style.linePrefix)stretch. hydrate. look away."
         }
     }
 

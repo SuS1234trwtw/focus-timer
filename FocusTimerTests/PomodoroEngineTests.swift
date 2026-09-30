@@ -114,6 +114,33 @@ struct PomodoroEngineTests {
         #expect(second.remaining == 25 * 60 - 120)
     }
 
+    @Test func customDurationsApplyToIdleBlock() {
+        let engine = makeEngine()
+        engine.setDurations(PomodoroDurations(focusMinutes: 50, restMinutes: 10))
+        #expect(engine.remaining == 50 * 60)
+        #expect(engine.remaining.clockString == "50:00")
+    }
+
+    @Test func customDurationsWaitForTheNextBlockWhileRunning() throws {
+        let engine = makeEngine()
+        engine.start()
+        clock.advance(60)
+        engine.setDurations(PomodoroDurations(focusMinutes: 50, restMinutes: 10))
+        engine.tick()
+        #expect(engine.remaining == 24 * 60)
+
+        clock.advance(24 * 60)
+        try #require(engine.tick())
+        #expect(engine.mode == .rest)
+        #expect(engine.remaining == 10 * 60)
+    }
+
+    @Test func durationMinutesAreClamped() {
+        let durations = PomodoroDurations(focusMinutes: 500, restMinutes: 0)
+        #expect(durations.focus == 120 * 60)
+        #expect(durations.rest == 60)
+    }
+
     @Test func clockStringRoundsUp() {
         #expect(TimeInterval(0.2).clockString == "00:01")
         #expect(TimeInterval(0).clockString == "00:00")

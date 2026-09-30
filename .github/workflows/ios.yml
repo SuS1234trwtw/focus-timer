@@ -75,6 +75,17 @@ jobs:
           xcrun simctl launch "$UDID" com.focustimer.app -fastTimer -autostart
           sleep 14
           xcrun simctl io "$UDID" screenshot screenshots/2-break.png
+          # 3) PowerShell style, running; 4) settings sheet
+          xcrun simctl terminate "$UDID" com.focustimer.app
+          xcrun simctl uninstall "$UDID" com.focustimer.app
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch "$UDID" com.focustimer.app -seedDemo -style powershell -autostart
+          sleep 6
+          xcrun simctl io "$UDID" screenshot screenshots/3-powershell.png
+          xcrun simctl terminate "$UDID" com.focustimer.app
+          xcrun simctl launch "$UDID" com.focustimer.app -openSettings
+          sleep 6
+          xcrun simctl io "$UDID" screenshot screenshots/4-settings.png
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v5

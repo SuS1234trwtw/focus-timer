@@ -16,6 +16,20 @@ struct PomodoroDurations: Sendable, Equatable {
     static let standard = PomodoroDurations(focus: 25 * 60, rest: 5 * 60)
     static let fast = PomodoroDurations(focus: 10, rest: 5)
 
+    /// Allowed lengths in the settings, in minutes.
+    static let focusRange = 1...120
+    static let restRange = 1...60
+
+    init(focus: TimeInterval, rest: TimeInterval) {
+        self.focus = focus
+        self.rest = rest
+    }
+
+    init(focusMinutes: Int, restMinutes: Int) {
+        self.focus = TimeInterval(min(max(focusMinutes, Self.focusRange.lowerBound), Self.focusRange.upperBound)) * 60
+        self.rest = TimeInterval(min(max(restMinutes, Self.restRange.lowerBound), Self.restRange.upperBound)) * 60
+    }
+
     func duration(for mode: TimerMode) -> TimeInterval {
         mode == .focus ? focus : rest
     }
@@ -43,11 +57,13 @@ final class PomodoroEngine {
     private(set) var completedFocusCount = 0
     private(set) var now: Date
 
-    let durations: PomodoroDurations
+    private(set) var durations: PomodoroDurations
 
     @ObservationIgnored private let clock: () -> Date
     @ObservationIgnored private let defaults: UserDefaults?
     @ObservationIgnored private let storageKey = "pomodoro.engine.v1"
+    /// Length of the block in progress, fixed when it starts so mid-block setting changes don't rewrite it.
+    @ObservationIgnored private var blockTotal: TimeInterval?
 
     init(durations: PomodoroDurations = .standard, clock: @escaping () -> Date = { Date() }, defaults: UserDefaults? = .standard) {
         self.durations = durations
@@ -75,7 +91,10 @@ final class PomodoroEngine {
     func start() {
         guard endDate == nil else { return }
         now = clock()
-        if segmentStartedAt == nil { segmentStartedAt = now }
+        if segmentStartedAt == nil {
+            segmentStartedAt = now
+            blockTotal = pausedRemaining
+        }
         endDate = now.addingTimeInterval(pausedRemaining)
         persist()
     }
@@ -93,6 +112,18 @@ final class PomodoroEngine {
         endDate = nil
         pausedRemaining = total
         segmentStartedAt = nil
+        blockTotal = nil
+        persist()
+    }
+
+    /// Changes the block lengths. An idle block picks up the new length straight away;
+    /// a running or paused block keeps its time and the change applies from the next block.
+    func setDurations(_ newValue: PomodoroDurations) {
+        guard newValue != durations else { return }
+        durations = newValue
+        if endDate == nil, segmentStartedAt == nil {
+            pausedRemaining = total
+        }
         persist()
     }
 
@@ -112,7 +143,7 @@ final class PomodoroEngine {
             mode: mode,
             startedAt: segmentStartedAt ?? endDate.addingTimeInterval(-total),
             endedAt: endDate,
-            duration: total,
+            duration: blockTotal ?? total,
             lateBy: now.timeIntervalSince(endDate)
         )
         if mode == .focus { completedFocusCount += 1 }
@@ -120,6 +151,7 @@ final class PomodoroEngine {
         self.endDate = nil
         pausedRemaining = total
         segmentStartedAt = nil
+        blockTotal = nil
         persist()
         return segment
     }

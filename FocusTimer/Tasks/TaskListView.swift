@@ -17,7 +17,7 @@ struct TaskListView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("$ tasks --list")
+                Text(palette.style.tasksCommand)
                     .foregroundStyle(palette.dim)
                 Spacer()
                 Text("\(openCount) open")
@@ -29,7 +29,7 @@ struct TaskListView: View {
             input
 
             if tasks.isEmpty {
-                Text("// nothing queued. add something to focus on.")
+                Text(palette.style.emptyTasks)
                     .font(Theme.mono(13, relativeTo: .footnote))
                     .foregroundStyle(palette.dim)
                     .padding(.vertical, 8)

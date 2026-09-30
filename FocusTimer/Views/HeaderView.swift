@@ -5,18 +5,31 @@ struct HeaderView: View {
     let mode: TimerMode
     let sessionsToday: Int
     let syncStatus: SyncCoordinator.Status
+    let onSettings: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 0) {
-                Text("~/focus ").foregroundStyle(palette.accent)
-                Text("$ ").foregroundStyle(palette.dim)
-                Text("pomodoro").foregroundStyle(palette.text)
+                Text(palette.style.promptPath).foregroundStyle(palette.accent)
+                Text(palette.style.promptSymbol).foregroundStyle(palette.dim)
+                Text(palette.style.command).foregroundStyle(palette.text)
                 cursor
+                Spacer(minLength: 8)
+                Button(action: onSettings) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(palette.dim)
+                        .frame(width: 36, height: 36)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Settings")
             }
             .font(Theme.mono(17, .bold, relativeTo: .headline))
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
 
             HStack(spacing: 14) {
                 Text("[ \(mode.label) ]")
@@ -31,12 +44,12 @@ struct HeaderView: View {
             }
             .font(Theme.mono(12, relativeTo: .caption))
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
     }
 
     @ViewBuilder
     private var cursor: some View {
-        let block = Text("▌").foregroundStyle(palette.accent)
+        let block = Text(palette.style.cursor).foregroundStyle(palette.accent)
         if reduceMotion {
             block
         } else {
