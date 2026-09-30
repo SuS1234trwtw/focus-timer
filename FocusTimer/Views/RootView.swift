@@ -21,7 +21,9 @@ struct RootView: View {
 
     private static let reelValues = Array(PomodoroEngine.minuteRange.reversed())
 
-    private var palette: Palette { Theme.palette(for: engine.mode) }
+    /// Overtime previews the next mode, so a finished focus block flips to the light break palette.
+    private var shownMode: TimerMode { engine.isOvertime ? engine.mode.next : engine.mode }
+    private var palette: Palette { Theme.palette(for: shownMode) }
 
     private var activeTask: TaskItem? {
         tasks.filter { $0.isActive && !$0.isDone }.max { $0.updatedAt < $1.updatedAt }
@@ -64,14 +66,14 @@ struct RootView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 12)
         }
-        .animation(.easeInOut(duration: 0.9), value: engine.mode)
+        .animation(.easeInOut(duration: 0.9), value: shownMode)
         .animation(.smooth(duration: 0.5), value: engine.isOvertime)
-        .preferredColorScheme(engine.mode == .rest ? .light : .dark)
+        .preferredColorScheme(shownMode == .rest ? .light : .dark)
         .tint(palette.ink)
         .sensoryFeedback(.success, trigger: chimeCount)
         .sensoryFeedback(.impact(weight: .medium), trigger: engine.isRunning)
-        .sheet(isPresented: $showTasks) { TasksSheet() }
-        .sheet(isPresented: $showSettings) { SettingsSheet() }
+        .sheet(isPresented: $showTasks) { TasksSheet().tint(palette.ink) }
+        .sheet(isPresented: $showSettings) { SettingsSheet().tint(palette.ink) }
         .task { await runClock() }
         .task { await sync.syncNow() }
         .onAppear {

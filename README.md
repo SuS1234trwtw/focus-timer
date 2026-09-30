@@ -1,12 +1,12 @@
 # Focus — Pomodoro timer for iOS 26
 
-A minimalist Pomodoro timer with a task list and a cozy dark terminal look. Native SwiftUI app (iOS 26+) with an offline-first SwiftData store that syncs to Supabase.
+A minimalist Pomodoro timer built around one giant, carved numeral. Native SwiftUI app (iOS 26+) with an offline-first SwiftData store that syncs to Supabase.
 
-- 25:00 focus / 5:00 break countdown with Start, Pause, Reset, and focus/break tabs
-- Background and accent shift from warm orange (focus) to soft green (break)
-- Gentle two-note chime at zero: played in the app, and through a local notification when the app is closed
-- Task list: add, check off, delete, and tap a task to make it the active one (highlighted, shown under the timer)
-- JetBrains Mono, scanlines, blinking cursor, Liquid Glass controls
+- A vertical reel of chiseled 3D minute numerals: **scroll** to pick the length, **tap** to start/pause, **hold** to reset
+- The numeral lights up with a burst when a block starts; the reel rolls down as minutes pass
+- Focus is dark, break inverts to light; at zero a gentle chime plays and a `+00:00:00` overtime count runs until you tap
+- Settings (sliders icon): timer font (Block, Hairline, Mono, Round, Serif), focus/break lengths, chime on/off
+- Tasks (checklist icon): add, check off, swipe to delete, tap to make one active; it shows under the timer
 - Tasks and completed sessions sync to Supabase (anonymous auth + row-level security); works fully offline
 
 ## Layout
@@ -15,10 +15,10 @@ A minimalist Pomodoro timer with a task list and a cozy dark terminal look. Nati
 project.yml                 XcodeGen spec (the .xcodeproj is generated, not committed)
 Config/                     Base.xcconfig + your gitignored Secrets.xcconfig
 FocusTimer/                 app source
-  Timer/                    PomodoroEngine (state machine), TimerView, chime + notifications
-  Tasks/                    SwiftData models, task actions, TaskListView
+  Timer/                    PomodoroEngine (state machine), NumeralReel (3D numerals + burst), chime
+  Tasks/                    SwiftData models, task actions, TasksSheet
   Sync/                     SupabaseService, SyncCoordinator (push/pull, last-write-wins)
-  Views/                    RootView, header, terminal overlay
+  Views/                    RootView, SettingsSheet
   Resources/                chime.wav, asset catalog, Fonts/ (fetched)
 FocusTimerTests/            Swift Testing: engine + sync merge
 supabase/migrations/        database schema + RLS policies
@@ -50,7 +50,7 @@ xcodegen generate
 open FocusTimer.xcodeproj
 ```
 
-To test full cycles quickly, add `-fastTimer` under *Scheme → Run → Arguments* (10s focus / 5s break).
+To test full cycles quickly, add `-fastTimer` under *Scheme → Run → Arguments* (each "minute" lasts one second).
 
 ## Getting it onto an iPhone
 
