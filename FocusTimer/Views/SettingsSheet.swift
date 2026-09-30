@@ -5,7 +5,7 @@ struct SettingsSheet: View {
     @Environment(SyncCoordinator.self) private var sync
     @Environment(\.dismiss) private var dismiss
 
-    @AppStorage("timerFont") private var timerFont: TimerFont = .block
+    @AppStorage("timerFont") private var timerFont: TimerFont = .carved
     @AppStorage("chimeEnabled") private var chimeEnabled = true
 
     var body: some View {
@@ -64,11 +64,17 @@ struct SettingsSheet: View {
             withAnimation(.snappy) { timerFont = option }
         } label: {
             VStack(spacing: 6) {
-                Text("25")
-                    .font(option.font(size: 44))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-                    .frame(width: 76, height: 58)
+                Group {
+                    if option == .carved {
+                        CarvedNumeral(text: "25", tone: Theme.focus.carvedLit, castShadow: .black.opacity(0.4))
+                    } else {
+                        Text("25")
+                            .font(option.font(size: 44))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
+                    }
+                }
+                .frame(width: 76, height: 58)
                 Text(option.name)
                     .font(.caption.weight(selected ? .semibold : .regular))
                     .foregroundStyle(selected ? .primary : .secondary)

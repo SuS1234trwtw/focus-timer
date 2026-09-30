@@ -12,6 +12,11 @@ struct Palette: Equatable {
     let ink: Color
     let secondary: Color
     let castShadow: Color
+    /// Carved numerals at rest, and lit while the timer runs.
+    let carved: CarvedTone
+    let carvedLit: CarvedTone
+
+    func carvedTone(lit: Bool) -> CarvedTone { lit ? carvedLit : carved }
 }
 
 enum Theme {
@@ -21,7 +26,9 @@ enum Theme {
         numeralLit: Color(hex: 0xF4F4F2),
         ink: Color(hex: 0xF4F4F2),
         secondary: Color(hex: 0x8C8C8C),
-        castShadow: .black.opacity(0.75)
+        castShadow: .black.opacity(0.75),
+        carved: CarvedTone(shadow: Color(hex: 0x0E0E0E), highlight: Color(hex: 0x505050), side: Color(hex: 0x080808)),
+        carvedLit: CarvedTone(shadow: Color(hex: 0x6E6E6E), highlight: Color(hex: 0xFFFFFF), side: Color(hex: 0x3A3A3A))
     )
 
     static let rest = Palette(
@@ -30,7 +37,9 @@ enum Theme {
         numeralLit: Color(hex: 0x1C1C1C),
         ink: Color(hex: 0x161616),
         secondary: Color(hex: 0x77746E),
-        castShadow: .black.opacity(0.28)
+        castShadow: .black.opacity(0.28),
+        carved: CarvedTone(shadow: Color(hex: 0xB4B0A8), highlight: Color(hex: 0xFAF8F4), side: Color(hex: 0x9C988F)),
+        carvedLit: CarvedTone(shadow: Color(hex: 0x0C0C0C), highlight: Color(hex: 0x6A6A6A), side: Color(hex: 0x000000))
     )
 
     static func palette(for mode: TimerMode) -> Palette {
@@ -45,12 +54,13 @@ enum Theme {
 
 /// Typeface for the big numerals, chosen in Settings.
 enum TimerFont: String, CaseIterable, Identifiable {
-    case block, hairline, mono, round, serif
+    case carved, block, hairline, mono, round, serif
 
     var id: String { rawValue }
 
     var name: String {
         switch self {
+        case .carved: "Carved"
         case .block: "Block"
         case .hairline: "Hairline"
         case .mono: "Mono"
@@ -61,7 +71,8 @@ enum TimerFont: String, CaseIterable, Identifiable {
 
     func font(size: CGFloat) -> Font {
         switch self {
-        case .block:
+        case .carved, .block:
+            // Carved draws its own glyphs; this is only its fallback for characters it lacks.
             .system(size: size, weight: .heavy).width(.compressed)
         case .hairline:
             .system(size: size, weight: .ultraLight).width(.condensed)

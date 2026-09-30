@@ -43,6 +43,30 @@ struct ChiseledNumeral: View {
     }
 }
 
+/// One big numeral in the chosen typeface: carved glyphs from Figma, or a font with the chiseled treatment.
+struct NumeralFace: View {
+    let text: String
+    let font: TimerFont
+    let lit: Bool
+    let palette: Palette
+    let height: CGFloat
+
+    var body: some View {
+        if font == .carved, CarvedGlyphSet.shared.supports(text) {
+            CarvedNumeral(text: text, tone: palette.carvedTone(lit: lit), castShadow: palette.castShadow)
+        } else {
+            ChiseledNumeral(
+                text: text,
+                font: font.font(size: height * 0.98),
+                face: lit ? palette.numeralLit : palette.numeral,
+                lit: lit,
+                palette: palette,
+                depth: height * 0.022 * font.extrusion
+            )
+        }
+    }
+}
+
 /// Vertical reel of minute values. Scroll to choose; the centred value is the block length.
 struct NumeralReel: View {
     let values: [Int]
@@ -60,14 +84,7 @@ struct NumeralReel: View {
                 LazyVStack(spacing: 0) {
                     ForEach(values, id: \.self) { value in
                         let lit = value == litValue
-                        ChiseledNumeral(
-                            text: "\(value)",
-                            font: font.font(size: itemHeight * 0.98),
-                            face: lit ? palette.numeralLit : palette.numeral,
-                            lit: lit,
-                            palette: palette,
-                            depth: itemHeight * 0.022 * font.extrusion
-                        )
+                        NumeralFace(text: "\(value)", font: font, lit: lit, palette: palette, height: itemHeight)
                         .padding(.horizontal, 22)
                         .frame(maxWidth: .infinity)
                         .frame(height: itemHeight)

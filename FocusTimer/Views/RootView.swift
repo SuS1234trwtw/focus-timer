@@ -10,7 +10,7 @@ struct RootView: View {
     @Query(filter: #Predicate<TaskItem> { $0.deletedAt == nil }, sort: \TaskItem.createdAt)
     private var tasks: [TaskItem]
 
-    @AppStorage("timerFont") private var timerFont: TimerFont = .block
+    @AppStorage("timerFont") private var timerFont: TimerFont = .carved
     @AppStorage("chimeEnabled") private var chimeEnabled = true
 
     @State private var reelPosition: Int?
@@ -156,16 +156,9 @@ struct RootView: View {
 
     private var overtimeGlyph: some View {
         GeometryReader { proxy in
-            let size = proxy.size.height * 0.3
-            ChiseledNumeral(
-                text: "+",
-                font: .system(size: size, weight: .black),
-                face: palette.numeralLit,
-                lit: true,
-                palette: palette,
-                depth: size * 0.05
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            NumeralFace(text: "+", font: timerFont, lit: true, palette: palette, height: proxy.size.height * 0.3)
+                .frame(width: proxy.size.width * 0.5, height: proxy.size.height * 0.3)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .contentShape(.rect)
         .onTapGesture(perform: primaryAction)

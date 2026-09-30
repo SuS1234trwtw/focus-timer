@@ -2,10 +2,10 @@
 
 A minimalist Pomodoro timer built around one giant, carved numeral. Native SwiftUI app (iOS 26+) with an offline-first SwiftData store that syncs to Supabase.
 
-- A vertical reel of chiseled 3D minute numerals: **scroll** to pick the length, **tap** to start/pause, **hold** to reset
+- A vertical reel of carved 3D minute numerals (faceted glyphs modelled in Figma): **scroll** to pick the length, **tap** to start/pause, **hold** to reset
 - The numeral lights up with a burst when a block starts; the reel rolls down as minutes pass
 - Focus is dark, break inverts to light; at zero a gentle chime plays and a `+00:00:00` overtime count runs until you tap
-- Settings (sliders icon): timer font (Block, Hairline, Mono, Round, Serif), focus/break lengths, chime on/off
+- Settings (sliders icon): timer font (Carved, Block, Hairline, Mono, Round, Serif), focus/break lengths, chime on/off
 - Tasks (checklist icon): add, check off, swipe to delete, tap to make one active; it shows under the timer
 - Tasks and completed sessions sync to Supabase (anonymous auth + row-level security); works fully offline
 
@@ -19,10 +19,10 @@ FocusTimer/                 app source
   Tasks/                    SwiftData models, task actions, TasksSheet
   Sync/                     SupabaseService, SyncCoordinator (push/pull, last-write-wins)
   Views/                    RootView, SettingsSheet
-  Resources/                chime.wav, asset catalog, Fonts/ (fetched)
+  Resources/                CarvedGlyphs.json, AppIcon.icon (Liquid Glass layers), chime.wav, Fonts/ (fetched)
 FocusTimerTests/            Swift Testing: engine + sync merge
 supabase/migrations/        database schema + RLS policies
-scripts/                    fetch-fonts.sh, generate_assets.py (chime + icon)
+scripts/                    carved_glyphs.mjs (numeral model), fetch-fonts.sh, generate_assets.py (chime)
 .github/workflows/ios.yml   CI: build + test on a macOS runner
 ```
 
