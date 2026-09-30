@@ -55,3 +55,7 @@ To test full cycles quickly, add `-fastTimer` under *Scheme → Run → Argument
 ## Getting it onto an iPhone
 
 Installing on a real device needs code signing: either Xcode on a Mac with your Apple ID (free accounts work for your own phone, re-sign every 7 days), or an Apple Developer Program membership for TestFlight via Xcode Cloud or a signed CI job.
+
+```bash
+creator note:
+hoi chieu....... hoio chieuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu t-t--t-t-t-t-t-t-t-tt-t-t-t-t-t-t-troi m-m-m--mm-m-m-m-m-m-mua
