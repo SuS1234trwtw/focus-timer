@@ -38,6 +38,9 @@ final class PomodoroEngine {
     private(set) var finishedAt: Date?
     private(set) var completedFocusCount = 0
     private(set) var now: Date
+    /// The big number on screen: whole minutes left, rounded up (44:00 and 43:59 both read "44").
+    /// Stored, and only reassigned when it changes, so views reading it don't redraw on every tick.
+    private(set) var displayMinutes = 25
 
     /// Seconds per "minute". 60 normally; 1 with `-fastTimer` so a 25 block lasts 25s.
     let unit: TimeInterval
@@ -53,6 +56,7 @@ final class PomodoroEngine {
         self.now = clock()
         self.pausedRemaining = 25 * unit
         restore()
+        refreshDisplay()
     }
 
     var isRunning: Bool { endDate != nil }
@@ -75,10 +79,9 @@ final class PomodoroEngine {
         finishedAt.map { max(0, now.timeIntervalSince($0)) } ?? 0
     }
 
-    /// The big number on screen: whole minutes left, rounded up (44:00 and 43:59 both read "44").
-    var displayMinutes: Int {
-        guard isInProgress else { return minutes(for: mode) }
-        return max(1, Int((remaining / unit).rounded(.up)))
+    private func refreshDisplay() {
+        let value = isInProgress ? max(1, Int((remaining / unit).rounded(.up))) : minutes(for: mode)
+        if value != displayMinutes { displayMinutes = value }
     }
 
     var progress: Double {
@@ -142,6 +145,7 @@ final class PomodoroEngine {
     @discardableResult
     func tick() -> CompletedSegment? {
         now = clock()
+        refreshDisplay()
         guard let endDate, now >= endDate else { return nil }
 
         let segment = CompletedSegment(
@@ -174,6 +178,7 @@ final class PomodoroEngine {
     }
 
     private func persist() {
+        refreshDisplay()
         guard let defaults else { return }
         let snapshot = Snapshot(
             mode: mode,

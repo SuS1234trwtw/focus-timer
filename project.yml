@@ -31,8 +31,8 @@ targets:
       path: FocusTimer/Info.plist
       properties:
         CFBundleDisplayName: Focus
-        CFBundleShortVersionString: "1.1.0"
-        CFBundleVersion: "2"
+        CFBundleShortVersionString: "1.2.0"
+        CFBundleVersion: "3"
         ITSAppUsesNonExemptEncryption: false
         UILaunchScreen:
           UIColorName: LaunchBackground

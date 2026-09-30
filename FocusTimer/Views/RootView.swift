@@ -6,7 +6,6 @@ struct RootView: View {
     @Environment(PomodoroEngine.self) private var engine
     @Environment(SyncCoordinator.self) private var sync
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// User order: lowest sortIndex first; new tasks go on top.
     @Query(TaskItem.ordered) private var tasks: [TaskItem]
@@ -14,29 +13,25 @@ struct RootView: View {
     @AppStorage("timerFont") private var timerFont: TimerFont = .carved
     @AppStorage("chimeEnabled") private var chimeEnabled = true
     @AppStorage("tickHaptics") private var tickHaptics = true
+    @AppStorage("colorTheme") private var colorTheme: ColorTheme = .graphite
 
     @State private var reelPosition: Int?
     @State private var showTasks = false
     @State private var showSettings = false
     @State private var burstCount = 0
     @State private var chimeCount = 0
-    @State private var popCount = 0
     @State private var resetCount = 0
     @State private var taskDoneCount = 0
-    @State private var pressed = false
 
     private static let reelValues = Array(PomodoroEngine.minuteRange.reversed())
 
     /// Overtime previews the next mode, so a finished focus block flips to the light break palette.
     private var shownMode: TimerMode { engine.isOvertime ? engine.mode.next : engine.mode }
-    private var palette: Palette { Theme.palette(for: shownMode) }
+    private var palette: Palette { colorTheme.palette(for: shownMode) }
 
     /// The task shown under the timer: the first open one in the user's order.
     private var currentTask: TaskItem? { tasks.first { !$0.isDone } }
     private var openCount: Int { tasks.filter { !$0.isDone }.count }
-
-    /// Whole seconds left while running (drives the tick haptic); -1 otherwise.
-    private var tickSecond: Int { engine.isRunning ? Int(engine.remaining.rounded(.up)) : -1 }
 
     var body: some View {
         ZStack {
@@ -53,21 +48,9 @@ struct RootView: View {
             )
             .ignoresSafeArea()
             .opacity(engine.isOvertime ? 0 : 1)
-            // Press in on touch-down; spring back with a little bounce on release.
-            .scaleEffect(pressed && !reduceMotion ? 0.94 : 1)
-            .animation(pressed ? .spring(response: 0.18, dampingFraction: 0.9) : .spring(response: 0.42, dampingFraction: 0.5), value: pressed)
-            // A quick pop when a block starts or pauses.
-            .keyframeAnimator(initialValue: 1.0, trigger: popCount) { content, scale in
-                content.scaleEffect(scale)
-            } keyframes: { _ in
-                KeyframeTrack {
-                    SpringKeyframe(1.05, duration: 0.12, spring: .snappy)
-                    SpringKeyframe(1.0, duration: 0.5, spring: .bouncy(duration: 0.5, extraBounce: 0.15))
-                }
-            }
             .contentShape(.rect)
             .onTapGesture(perform: primaryAction)
-            .onLongPressGesture(minimumDuration: 0.6, perform: reset, onPressingChanged: { pressed = $0 })
+            .onLongPressGesture(minimumDuration: 0.6, perform: reset)
             .accessibilityAction(named: engine.isRunning ? "Pause" : "Start", primaryAction)
             .accessibilityAction(named: "Reset", reset)
 
@@ -83,10 +66,12 @@ struct RootView: View {
             StartBurst(trigger: burstCount, color: palette.numeralLit)
                 .ignoresSafeArea()
 
+            TickHaptics(enabled: tickHaptics)
+
             VStack(spacing: 14) {
                 topBar
                 Spacer()
-                readout
+                Readout(palette: palette)
                 taskCard
             }
             .padding(.horizontal, 20)
@@ -100,11 +85,6 @@ struct RootView: View {
         .sensoryFeedback(.success, trigger: taskDoneCount)
         .sensoryFeedback(.impact(weight: .medium), trigger: engine.isRunning)
         .sensoryFeedback(.impact(weight: .heavy), trigger: resetCount)
-        .sensoryFeedback(trigger: tickSecond) { _, second in
-            guard tickHaptics, second > 0 else { return nil }
-            // A firmer knock as each minute rolls over, a soft tick every other second.
-            return second % 60 == 0 ? .impact(weight: .medium, intensity: 0.9) : .impact(weight: .light, intensity: 0.45)
-        }
         .sheet(isPresented: $showTasks) { TasksSheet().tint(palette.ink) }
         .sheet(isPresented: $showSettings) { SettingsSheet().tint(palette.ink) }
         .task { await runClock() }
@@ -116,6 +96,10 @@ struct RootView: View {
             if args.contains("-autostart") { engine.start(); burstCount += 1 }
             if args.contains("-openSettings") { showSettings = true }
             if args.contains("-openTasks") { showTasks = true }
+            if let flag = args.firstIndex(of: "-theme"), args.indices.contains(flag + 1),
+               let theme = ColorTheme(rawValue: args[flag + 1]) {
+                colorTheme = theme
+            }
             #endif
         }
         .onChange(of: reelPosition) { _, value in
@@ -125,9 +109,9 @@ struct RootView: View {
             TimerNotifier.cancel()
         }
         .onChange(of: engine.displayMinutes) { _, value in
-            // Timer ticked past a minute, or the mode changed: roll the reel to follow.
+            // Timer ticked past a minute, or the mode changed: roll the reel to follow, like a mechanical counter.
             guard reelPosition != value else { return }
-            withAnimation(.smooth(duration: 0.6)) { reelPosition = value }
+            withAnimation(.spring(duration: 0.7, bounce: 0.12)) { reelPosition = value }
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
@@ -159,32 +143,6 @@ struct RootView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
-    }
-
-    private var readout: some View {
-        VStack(spacing: 4) {
-            Group {
-                if let finishedAt = engine.finishedAt {
-                    TimelineView(.animation) { context in
-                        Text("+" + max(0, context.date.timeIntervalSince(finishedAt)).stopwatchString)
-                    }
-                } else {
-                    Text(engine.remaining.clockString)
-                        .contentTransition(.numericText(countsDown: true))
-                        .animation(.easeInOut(duration: 0.15), value: engine.remaining.clockString)
-                }
-            }
-            .font(Theme.readout(26))
-            .foregroundStyle(palette.ink)
-
-            Text(caption)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(palette.secondary)
-                .lineLimit(1)
-                .contentTransition(.opacity)
-        }
-        .frame(maxWidth: .infinity)
-        .allowsHitTesting(false)
     }
 
     /// The current task under the timer: check it off here, or tap to open the task list.
@@ -252,16 +210,6 @@ struct RootView: View {
         .accessibilityAddTraits(.isButton)
     }
 
-    private var caption: String {
-        if engine.isOvertime {
-            return engine.mode == .focus ? "time's up · tap for a break" : "break's over · tap to focus"
-        }
-        if engine.isRunning { return engine.mode.label }
-        if engine.isInProgress { return "paused · hold to reset" }
-        let done = engine.completedFocusCount
-        return "\(engine.mode.label) · tap to start" + (done > 0 ? " · \(done) done" : "")
-    }
-
     // MARK: Actions
 
     private func primaryAction() {
@@ -270,7 +218,6 @@ struct RootView: View {
             TimerNotifier.cancel()
             return
         }
-        if !reduceMotion { popCount += 1 }
         if engine.isRunning {
             engine.pause()
             TimerNotifier.cancel()
@@ -319,6 +266,65 @@ struct RootView: View {
             chimeCount += 1
         }
         sync.record(segment, taskID: segment.mode == .focus ? currentTask?.id : nil)
+    }
+}
+
+/// The small time readout and caption. Its own view so only it redraws on each clock tick.
+private struct Readout: View {
+    @Environment(PomodoroEngine.self) private var engine
+    let palette: Palette
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Group {
+                if let finishedAt = engine.finishedAt {
+                    TimelineView(.animation) { context in
+                        Text("+" + max(0, context.date.timeIntervalSince(finishedAt)).stopwatchString)
+                    }
+                } else {
+                    Text(engine.remaining.clockString)
+                        .contentTransition(.numericText(countsDown: true))
+                        .animation(.easeInOut(duration: 0.15), value: engine.remaining.clockString)
+                }
+            }
+            .font(Theme.readout(26))
+            .foregroundStyle(palette.ink)
+
+            Text(caption)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(palette.secondary)
+                .lineLimit(1)
+                .contentTransition(.opacity)
+        }
+        .frame(maxWidth: .infinity)
+        .allowsHitTesting(false)
+    }
+
+    private var caption: String {
+        if engine.isOvertime {
+            return engine.mode == .focus ? "time's up · tap for a break" : "break's over · tap to focus"
+        }
+        if engine.isRunning { return engine.mode.label }
+        if engine.isInProgress { return "paused · hold to reset" }
+        let done = engine.completedFocusCount
+        return "\(engine.mode.label) · tap to start" + (done > 0 ? " · \(done) done" : "")
+    }
+}
+
+/// A soft tick each second while running, a firmer knock as each minute rolls over.
+/// Its own view so reading the clock doesn't redraw the rest of the screen.
+private struct TickHaptics: View {
+    @Environment(PomodoroEngine.self) private var engine
+    let enabled: Bool
+
+    var body: some View {
+        Color.clear
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .sensoryFeedback(trigger: engine.isRunning ? Int(engine.remaining.rounded(.up)) : -1) { _, second in
+                guard enabled, second > 0 else { return nil }
+                return second % 60 == 0 ? .impact(weight: .medium, intensity: 0.9) : .impact(weight: .light, intensity: 0.45)
+            }
     }
 }
 

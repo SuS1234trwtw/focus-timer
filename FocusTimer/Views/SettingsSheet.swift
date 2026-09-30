@@ -8,10 +8,24 @@ struct SettingsSheet: View {
     @AppStorage("timerFont") private var timerFont: TimerFont = .carved
     @AppStorage("chimeEnabled") private var chimeEnabled = true
     @AppStorage("tickHaptics") private var tickHaptics = true
+    @AppStorage("colorTheme") private var colorTheme: ColorTheme = .graphite
 
     var body: some View {
         NavigationStack {
             Form {
+                Section("Color theme") {
+                    ScrollView(.horizontal) {
+                        HStack(spacing: 14) {
+                            ForEach(ColorTheme.allCases) { theme in
+                                themeSwatch(theme)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .scrollIndicators(.hidden)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                }
+
                 Section("Timer font") {
                     ScrollView(.horizontal) {
                         HStack(spacing: 10) {
@@ -60,6 +74,41 @@ struct SettingsSheet: View {
         }
         .presentationDetents([.medium, .large])
         .sensoryFeedback(.selection, trigger: timerFont)
+        .sensoryFeedback(.selection, trigger: colorTheme)
+    }
+
+    /// Font cards preview on the chosen theme's focus look.
+    private var cardPalette: Palette { colorTheme.palette(for: .focus) }
+
+    private func themeSwatch(_ theme: ColorTheme) -> some View {
+        let selected = theme == colorTheme
+        return Button {
+            withAnimation(.easeInOut(duration: 0.25)) { colorTheme = theme }
+        } label: {
+            VStack(spacing: 6) {
+                Circle()
+                    .fill(theme.swatch.background)
+                    .overlay {
+                        // The lit colour as a crescent, like light catching a carved face.
+                        Circle()
+                            .fill(theme.swatch.accent)
+                            .mask {
+                                Circle().offset(x: -9, y: -9)
+                            }
+                    }
+                    .overlay {
+                        Circle().strokeBorder(selected ? Color.primary : Color.primary.opacity(0.15), lineWidth: selected ? 2.5 : 1)
+                    }
+                    .frame(width: 46, height: 46)
+                Text(theme.name)
+                    .font(.caption.weight(selected ? .semibold : .regular))
+                    .foregroundStyle(selected ? .primary : .secondary)
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(theme.name) theme")
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private func fontCard(_ option: TimerFont) -> some View {
@@ -68,15 +117,15 @@ struct SettingsSheet: View {
             withAnimation(.snappy) { timerFont = option }
         } label: {
             VStack(spacing: 6) {
-                CarvedNumeral(text: "25", font: option, tone: Theme.focus.carvedLit, castShadow: .black.opacity(0.4))
+                CarvedNumeral(text: "25", font: option, tone: cardPalette.carvedLit, castShadow: RGB.black.opacity(0.4))
                     .frame(width: 76, height: 58)
                 Text(option.name)
                     .font(.caption.weight(selected ? .semibold : .regular))
-                    .foregroundStyle(selected ? .primary : .secondary)
+                    .foregroundStyle(selected ? cardPalette.ink : cardPalette.secondary)
             }
             .padding(.vertical, 10)
             .padding(.horizontal, 6)
-            .background(.fill.tertiary, in: .rect(cornerRadius: 14))
+            .background(cardPalette.background, in: .rect(cornerRadius: 14))
             .overlay {
                 RoundedRectangle(cornerRadius: 14)
                     .strokeBorder(selected ? Color.primary : .clear, lineWidth: 2)

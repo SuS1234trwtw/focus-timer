@@ -79,6 +79,14 @@ jobs:
           sleep 4; shot 2-running
           sleep 25; shot 3-overtime
 
+          # a colour theme, running
+          fresh
+          xcrun simctl launch "$UDID" com.focustimer.app -seedDemo -theme ember -fastTimer -autostart
+          sleep 5; shot 6-ember-running
+          xcrun simctl terminate "$UDID" com.focustimer.app
+          xcrun simctl launch "$UDID" com.focustimer.app -theme tide
+          sleep 5; shot 7-tide-idle
+
           # sheets
           fresh
           xcrun simctl launch "$UDID" com.focustimer.app -seedDemo -openSettings

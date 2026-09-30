@@ -1,19 +1,22 @@
+import CoreGraphics
 import SwiftUI
+import UIKit
 
 /// Faceted numeral families modelled in Figma ("Focus Timer — Carved Numerals & Icon"),
 /// regenerated from scripts/carved_model.js into CarvedGlyphs.json.
+/// Immutable after load, so it is safe to read from the background renderer.
 final class CarvedGlyphSet: @unchecked Sendable {
     struct Facet {
         /// 0 (facing away from the light) … 1 (facing it).
         let light: Double
-        let path: Path
+        let path: CGPath
     }
 
     struct Glyph {
         let width: CGFloat
         let facets: [Facet]
-        /// Union of all facets: used for the extrusion and cast shadow.
-        let silhouette: Path
+        /// Union of all facets: used for the extrusion, shadow and grain clip.
+        let silhouette: CGPath
     }
 
     let height: CGFloat
@@ -47,10 +50,10 @@ final class CarvedGlyphSet: @unchecked Sendable {
             var glyphs: [Character: Glyph] = [:]
             for (key, glyph) in family.glyphs {
                 guard let character = key.first else { continue }
-                var silhouette = Path()
+                let silhouette = CGMutablePath()
                 let facets = glyph.f.compactMap { values -> Facet? in
                     guard values.count >= 7 else { return nil }
-                    var path = Path()
+                    let path = CGMutablePath()
                     path.move(to: CGPoint(x: values[1], y: values[2]))
                     for index in stride(from: 3, to: values.count - 1, by: 2) {
                         path.addLine(to: CGPoint(x: values[index], y: values[index + 1]))
@@ -72,85 +75,212 @@ final class CarvedGlyphSet: @unchecked Sendable {
     }
 }
 
-/// Colours a carved numeral is shaded between.
-struct CarvedTone: Equatable {
-    /// Facets turned away from the light.
-    let shadow: Color
-    /// Facets facing the light.
-    let highlight: Color
-    /// The extruded sides.
-    let side: Color
+/// One rasterisation of a numeral: what to draw, in which tones, at which size.
+struct CarvedRenderRequest: Sendable, Hashable {
+    let text: String
+    let font: TimerFont
+    let tone: CarvedTone
+    let castShadow: RGB
+    /// Point size, rounded so tiny layout changes reuse the cached image.
+    let size: CGSize
+    let scale: CGFloat
+
+    init(text: String, font: TimerFont, tone: CarvedTone, castShadow: RGB, size: CGSize, scale: CGFloat) {
+        self.text = text
+        self.font = font
+        self.tone = tone
+        self.castShadow = castShadow
+        self.size = CGSize(width: (size.width / 4).rounded() * 4, height: (size.height / 4).rounded() * 4)
+        self.scale = scale
+    }
+
+    var key: String {
+        "\(text)|\(font.rawValue)|\(tone.id)|\(Int(size.width))x\(Int(size.height))@\(scale)"
+    }
 }
 
-/// Draws a carved numeral: a soft cast shadow, a stepped extrusion toward the
-/// bottom-right, then every facet shaded between the tone's shadow and highlight.
+/// Draws carved numerals into bitmaps off the main thread and caches them, so scrolling and
+/// state changes only move finished images instead of re-shading thousands of facets per frame.
+enum CarvedRenderer {
+    /// NSCache is internally synchronised.
+    private final class Cache: @unchecked Sendable {
+        let images: NSCache<NSString, UIImage> = {
+            let cache = NSCache<NSString, UIImage>()
+            cache.totalCostLimit = 120 * 1024 * 1024
+            return cache
+        }()
+    }
+
+    private static let cache = Cache()
+
+    static func cached(_ request: CarvedRenderRequest) -> UIImage? {
+        cache.images.object(forKey: request.key as NSString)
+    }
+
+    @concurrent
+    static func render(_ request: CarvedRenderRequest) async -> UIImage? {
+        if let hit = cached(request) { return hit }
+        guard let image = draw(request) else { return nil }
+        let pixels = Int(request.size.width * request.size.height * request.scale * request.scale * 4)
+        cache.images.setObject(image, forKey: request.key as NSString, cost: pixels)
+        return image
+    }
+
+    /// Warms the cache for images the user is about to see (neighbouring reel values, the lit state).
+    static func prewarm(_ requests: [CarvedRenderRequest]) {
+        let missing = requests.filter { cached($0) == nil }
+        guard !missing.isEmpty else { return }
+        Task(priority: .utility) {
+            for request in missing { _ = await render(request) }
+        }
+    }
+
+    private static func draw(_ request: CarvedRenderRequest) -> UIImage? {
+        let set = CarvedGlyphSet.shared
+        let family = set.glyphs(for: request.font)
+        let glyphs = request.text.compactMap { family[$0] }
+        let tracking: CGFloat = 10
+        let totalWidth = glyphs.reduce(0) { $0 + $1.width } + tracking * CGFloat(max(glyphs.count - 1, 0))
+        let size = request.size, scale = request.scale
+        let pixelWidth = Int(size.width * scale), pixelHeight = Int(size.height * scale)
+        guard !glyphs.isEmpty, totalWidth > 0, pixelWidth > 0, pixelHeight > 0,
+              let context = CGContext(
+                data: nil, width: pixelWidth, height: pixelHeight, bitsPerComponent: 8, bytesPerRow: 0,
+                space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              )
+        else { return nil }
+
+        // Work in points with y pointing down, like SwiftUI.
+        context.translateBy(x: 0, y: CGFloat(pixelHeight))
+        context.scaleBy(x: scale, y: -scale)
+        context.interpolationQuality = .high
+
+        // Leave room for the extrusion and shadow falling to the bottom-right.
+        let glyphScale = min(size.width / totalWidth, size.height / set.height) * 0.9
+        let depth = set.height * glyphScale * 0.035
+        var x = (size.width - totalWidth * glyphScale) / 2 - depth
+        let y = (size.height - set.height * glyphScale) / 2 - depth
+        let placements: [(CarvedGlyphSet.Glyph, CGAffineTransform)] = glyphs.map { glyph in
+            defer { x += (glyph.width + tracking) * glyphScale }
+            return (glyph, CGAffineTransform(translationX: x, y: y).scaledBy(x: glyphScale, y: glyphScale))
+        }
+
+        let tone = request.tone
+        func fillSilhouettes(offset: CGFloat, color: CGColor) {
+            context.setFillColor(color)
+            for (glyph, transform) in placements {
+                context.saveGState()
+                context.translateBy(x: offset, y: offset)
+                context.concatenate(transform)
+                context.addPath(glyph.silhouette)
+                context.fillPath()
+                context.restoreGState()
+            }
+        }
+
+        // Cast shadow. Shadow offsets are in device space, where y points up.
+        context.saveGState()
+        context.setShadow(
+            offset: CGSize(width: depth * 1.6 * scale, height: -depth * 2.2 * scale),
+            blur: depth * 2.6 * scale,
+            color: request.castShadow.cgColor
+        )
+        fillSilhouettes(offset: depth, color: tone.side.cgColor)
+        context.restoreGState()
+
+        // Stepped extrusion toward the bottom-right.
+        let steps = 8
+        for step in stride(from: steps, through: 1, by: -1) {
+            fillSilhouettes(offset: depth * CGFloat(step) / CGFloat(steps), color: tone.side.cgColor)
+        }
+
+        // Facets, shaded between the tone's shadow and highlight.
+        let levels = 48
+        let ramp = (0..<levels).map { tone.shadow.mix(tone.highlight, Double($0) / Double(levels - 1)).cgColor }
+        context.setLineWidth(0.6 / glyphScale)
+        context.setLineJoin(.round)
+        for (glyph, transform) in placements {
+            context.saveGState()
+            context.concatenate(transform)
+            for facet in glyph.facets {
+                let color = ramp[min(levels - 1, max(0, Int(facet.light * Double(levels - 1) + 0.5)))]
+                context.setFillColor(color)
+                // A hairline in the same colour hides anti-aliasing seams between facets.
+                context.setStrokeColor(color)
+                context.addPath(facet.path)
+                context.drawPath(using: .fillStroke)
+            }
+            context.restoreGState()
+        }
+
+        // Stone grain over the faces.
+        if let grain = GrainTile.shared.cgImage {
+            context.saveGState()
+            for (glyph, transform) in placements {
+                var t = transform
+                if let clip = glyph.silhouette.copy(using: &t) { context.addPath(clip) }
+            }
+            context.clip()
+            context.setBlendMode(.overlay)
+            context.setAlpha(0.55)
+            context.draw(grain, in: CGRect(x: 0, y: 0, width: 80, height: 80), byTiling: true)
+            context.restoreGState()
+        }
+
+        guard let cgImage = context.makeImage() else { return nil }
+        return UIImage(cgImage: cgImage, scale: scale, orientation: .up)
+    }
+}
+
+/// A carved numeral, drawn by `CarvedRenderer` and cross-faded when its tone changes
+/// (dark ↔ lit), so state changes glow rather than snap.
 struct CarvedNumeral: View {
     let text: String
     var font: TimerFont = .carved
     let tone: CarvedTone
-    let castShadow: Color
+    let castShadow: RGB
 
-    private let set = CarvedGlyphSet.shared
-    /// Gap between glyphs, in glyph units.
-    private let tracking: CGFloat = 10
+    @Environment(\.displayScale) private var displayScale
+    @State private var rendered: Rendered?
+
+    private struct Rendered: Equatable {
+        let key: String
+        let image: UIImage
+        static func == (lhs: Rendered, rhs: Rendered) -> Bool { lhs.key == rhs.key }
+    }
 
     var body: some View {
-        let family = set.glyphs(for: font)
-        let glyphs = text.compactMap { family[$0] }
-        let grain = GrainOverlay.tile
-        let totalWidth = glyphs.reduce(0) { $0 + $1.width } + tracking * CGFloat(max(glyphs.count - 1, 0))
-
-        Canvas { context, size in
-            guard !glyphs.isEmpty, totalWidth > 0 else { return }
-
-            // Leave room for the extrusion and shadow falling to the bottom-right.
-            let scale = min(size.width / totalWidth, size.height / set.height) * 0.9
-            let depth = set.height * scale * 0.035
-            let origin = CGPoint(
-                x: (size.width - totalWidth * scale) / 2 - depth,
-                y: (size.height - set.height * scale) / 2 - depth
+        GeometryReader { proxy in
+            let request = CarvedRenderRequest(
+                text: text, font: font, tone: tone, castShadow: castShadow,
+                size: proxy.size, scale: displayScale
             )
-
-            var placements: [(CarvedGlyphSet.Glyph, CGAffineTransform)] = []
-            var x = origin.x
-            for glyph in glyphs {
-                placements.append((glyph, CGAffineTransform(translationX: x, y: origin.y).scaledBy(x: scale, y: scale)))
-                x += (glyph.width + tracking) * scale
-            }
-
-            var silhouette = Path()
-            for (glyph, transform) in placements {
-                silhouette.addPath(glyph.silhouette, transform: transform)
-            }
-
-            context.drawLayer { layer in
-                layer.addFilter(.blur(radius: depth * 1.3))
-                layer.fill(silhouette.offsetBy(dx: depth * 1.6, dy: depth * 2.2), with: .color(castShadow))
-            }
-
-            let steps = 8
-            for step in stride(from: steps, through: 1, by: -1) {
-                let offset = depth * CGFloat(step) / CGFloat(steps)
-                context.fill(silhouette.offsetBy(dx: offset, dy: offset), with: .color(tone.side))
-            }
-
-            for (glyph, transform) in placements {
-                for facet in glyph.facets {
-                    let path = facet.path.applying(transform)
-                    let color = tone.shadow.mix(with: tone.highlight, by: facet.light)
-                    context.fill(path, with: .color(color))
-                    // Hairline in the same colour hides anti-aliasing seams between facets.
-                    context.stroke(path, with: .color(color), lineWidth: 0.6)
+            ZStack {
+                if let rendered {
+                    Image(uiImage: rendered.image)
+                        .resizable()
+                        .id(rendered.key)
+                        .transition(.opacity)
                 }
             }
-
-            // Stone grain over the faces so they read as a material, not flat vector.
-            context.drawLayer { layer in
-                layer.blendMode = .overlay
-                layer.opacity = 0.55
-                layer.fill(silhouette, with: .tiledImage(grain, scale: 0.5))
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .animation(.easeInOut(duration: 0.3), value: rendered)
+            .task(id: request.key) {
+                if let hit = CarvedRenderer.cached(request) {
+                    show(Rendered(key: request.key, image: hit))
+                    return
+                }
+                guard let image = await CarvedRenderer.render(request), !Task.isCancelled else { return }
+                show(Rendered(key: request.key, image: image))
             }
         }
         .accessibilityLabel(text)
+    }
+
+    /// First appearance is instant (no fade while scrolling); later changes cross-fade.
+    private func show(_ next: Rendered) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = rendered == nil
+        withTransaction(transaction) { rendered = next }
     }
 }
