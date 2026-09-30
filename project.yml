@@ -35,7 +35,7 @@ targets:
       properties:
         CFBundleDisplayName: Focus
         CFBundleShortVersionString: "1.6.0"
-        CFBundleVersion: "9"
+        CFBundleVersion: "10"
         ITSAppUsesNonExemptEncryption: false
         UILaunchScreen:
           UIColorName: LaunchBackground
@@ -70,7 +70,7 @@ targets:
       properties:
         CFBundleDisplayName: Focus
         CFBundleShortVersionString: "1.6.0"
-        CFBundleVersion: "9"
+        CFBundleVersion: "10"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:

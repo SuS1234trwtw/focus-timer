@@ -6,12 +6,12 @@ import Foundation
 @MainActor
 enum TimerIntentBridge {
     static var toggle: (@MainActor () -> Void)?
-    static var skip: (@MainActor () -> Void)?
+    static var switchMode: (@MainActor () -> Void)?
 }
 
-/// Pause / resume from the Dynamic Island or lock screen.
+/// Start, pause or resume from the Dynamic Island or lock screen.
 struct ToggleTimerIntent: LiveActivityIntent {
-    static let title: LocalizedStringResource = "Pause or resume focus timer"
+    static let title: LocalizedStringResource = "Start or pause focus timer"
     static let isDiscoverable = false
 
     init() {}
@@ -23,16 +23,16 @@ struct ToggleTimerIntent: LiveActivityIntent {
     }
 }
 
-/// Ends the current block and readies the next one (focus → break, break → focus).
-struct SkipBlockIntent: LiveActivityIntent {
-    static let title: LocalizedStringResource = "Skip to next block"
+/// Switches focus ↔ break and starts the new block right away.
+struct SwitchModeIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "Switch between focus and break"
     static let isDiscoverable = false
 
     init() {}
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        TimerIntentBridge.skip?()
+        TimerIntentBridge.switchMode?()
         return .result()
     }
 }

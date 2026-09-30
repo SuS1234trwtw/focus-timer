@@ -19,6 +19,9 @@ final class AppModel {
     var currentTask: (id: UUID, title: String)?
     var liveLook = LiveLook.placeholder
     var showTrackInIsland = true
+    /// Off screen, the Dynamic Island stays up even with the timer stopped, so a block can be started
+    /// from there. Starts true: a Live Activity button can launch the app straight into the background.
+    var isInBackground = true
 
     private init() {
         do {
@@ -50,7 +53,7 @@ final class AppModel {
         sync = SyncCoordinator(context: container.mainContext, service: SupabaseService.fromInfoPlist())
 
         TimerIntentBridge.toggle = { [weak self] in self?.toggle() }
-        TimerIntentBridge.skip = { [weak self] in self?.skip() }
+        TimerIntentBridge.switchMode = { [weak self] in self?.switchAndStart() }
     }
 
     // MARK: Timer actions
@@ -98,9 +101,16 @@ final class AppModel {
         refreshLiveActivity()
     }
 
-    /// Ends the current block early and readies the next one.
-    func skip() {
-        switchMode(engine.mode.next)
+    /// Focus ↔ break, starting the new block straight away (the Dynamic Island's switch button).
+    func switchAndStart() {
+        if let segment = engine.tick() {
+            // The block ended while the phone was locked: the timer already moved to the next mode.
+            finish(segment)
+        } else {
+            engine.switchMode(to: engine.mode.next)
+            TimerNotifier.cancel()
+        }
+        start()
     }
 
     func finish(_ segment: CompletedSegment) {
@@ -119,7 +129,8 @@ final class AppModel {
             engine: engine,
             look: liveLook,
             taskTitle: currentTask?.title,
-            trackLine: showTrackInIsland ? spotify.track?.line : nil
+            trackLine: showTrackInIsland ? spotify.track?.line : nil,
+            keepWhenIdle: isInBackground
         )
     }
 }

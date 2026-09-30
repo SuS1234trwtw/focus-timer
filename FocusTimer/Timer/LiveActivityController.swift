@@ -24,7 +24,9 @@ final class LiveActivityController {
     private var lastState: FocusActivityAttributes.ContentState?
     private var lastSnapshot: TimerSnapshot?
 
-    func update(engine: PomodoroEngine, look: LiveLook, taskTitle: String?, trackLine: String?) {
+    /// - Parameter keepWhenIdle: keep (or create) the activity even with the timer stopped — used while
+    ///   the app is off screen so a block can be started from the Dynamic Island.
+    func update(engine: PomodoroEngine, look: LiveLook, taskTitle: String?, trackLine: String?, keepWhenIdle: Bool) {
         let inProgress = engine.isRunning || engine.segmentStartedAt != nil
 
         let state = FocusActivityAttributes.ContentState(
@@ -37,7 +39,8 @@ final class LiveActivityController {
             backgroundHex: look.backgroundHex,
             textHex: look.textHex,
             dimHex: look.dimHex,
-            trackLine: trackLine
+            trackLine: trackLine,
+            hasStarted: inProgress
         )
 
         saveSnapshot(TimerSnapshot(
@@ -47,7 +50,7 @@ final class LiveActivityController {
             textHex: look.textHex, dimHex: look.dimHex, trackLine: trackLine
         ))
 
-        if inProgress {
+        if inProgress || keepWhenIdle {
             guard state != lastState || activity?.attributes.prompt != look.prompt else { return }
             lastState = state
             show(state, prompt: look.prompt)

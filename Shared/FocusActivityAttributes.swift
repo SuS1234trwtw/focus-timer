@@ -19,6 +19,9 @@ struct FocusActivityAttributes: ActivityAttributes {
         /// e.g. "Song — Artist" from Spotify, when linked.
         var trackLine: String?
 
+        /// The block has been started at some point (so a stopped timer is "paused", not "ready").
+        var hasStarted: Bool = false
+
         var isRunning: Bool { endDate != nil }
         var modeLabel: String { mode == "focus" ? "FOCUS" : "BREAK" }
     }

@@ -133,11 +133,22 @@ struct RootView: View {
             if args.contains("-openSettings") { showSettings = true }
         }
         #endif
-        .onChange(of: scenePhase) { _, phase in
-            guard phase == .active else { return }
-            if let segment = engine.tick() { model.finish(segment) }
-            model.refreshLiveActivity()
-            Task { await sync.syncNow() }
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            switch phase {
+            case .active:
+                model.isInBackground = false
+                if let segment = engine.tick() { model.finish(segment) }
+                // Back on screen: an idle Dynamic Island isn't needed any more.
+                model.refreshLiveActivity()
+                Task { await sync.syncNow() }
+            case .inactive, .background:
+                // Leaving the app. iOS only lets a Live Activity be created while the app is still in
+                // front, so do it on the way out (inactive comes before background).
+                model.isInBackground = true
+                model.refreshLiveActivity()
+            @unknown default:
+                break
+            }
         }
         .onChange(of: engine.isRunning, initial: true) { _, running in
             UIApplication.shared.isIdleTimerDisabled = running

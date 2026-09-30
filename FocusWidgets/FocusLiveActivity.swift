@@ -48,13 +48,17 @@ struct FocusLiveActivity: Widget {
                     }
                 }
             } compactLeading: {
-                Image(systemName: state.mode == "focus" ? "brain.head.profile" : "cup.and.saucer.fill")
+                // Left of the island: which block this is.
+                Text(state.modeLabel)
+                    .font(.system(size: 12, weight: .heavy, design: .monospaced))
                     .foregroundStyle(accent)
+                    .padding(.leading, 2)
             } compactTrailing: {
+                // Right of the island: the time left.
                 Countdown(state: state)
-                    .font(.system(.caption, design: .monospaced).weight(.semibold))
-                    .foregroundStyle(accent)
-                    .frame(maxWidth: 52)
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(state.isRunning ? text : dim)
+                    .frame(maxWidth: 48, alignment: .trailing)
             } minimal: {
                 ProgressRing(state: state, accent: accent)
             }
@@ -157,7 +161,13 @@ private struct ProgressRing: View {
             .progressViewStyle(.circular)
             .tint(accent)
         } else {
-            Image(systemName: "pause.fill").foregroundStyle(accent)
+            if state.hasStarted {
+                Image(systemName: "pause.fill").foregroundStyle(accent)
+            } else {
+                Text(state.mode == "focus" ? "F" : "B")
+                    .font(.system(size: 13, weight: .heavy, design: .monospaced))
+                    .foregroundStyle(accent)
+            }
         }
     }
 }
@@ -169,17 +179,25 @@ private struct Controls: View {
 
     var body: some View {
         HStack(spacing: 10) {
+            // Pause while running; otherwise start (fresh block) or resume (paused block).
             Button(intent: ToggleTimerIntent()) {
-                Label(state.isRunning ? "pause" : "resume", systemImage: state.isRunning ? "pause.fill" : "play.fill")
+                Label(toggleTitle, systemImage: state.isRunning ? "pause.fill" : "play.fill")
                     .frame(maxWidth: .infinity)
             }
-            Button(intent: SkipBlockIntent()) {
-                Label("skip", systemImage: "forward.end.fill")
+            // Focus ↔ break, and the new block starts straight away.
+            Button(intent: SwitchModeIntent()) {
+                Label(state.mode == "focus" ? "break" : "focus",
+                      systemImage: state.mode == "focus" ? "cup.and.saucer.fill" : "brain.head.profile")
                     .frame(maxWidth: .infinity)
             }
         }
         .font(.system(.caption, design: .monospaced).weight(.bold))
         .buttonStyle(.bordered)
         .tint(accent)
+    }
+
+    private var toggleTitle: String {
+        if state.isRunning { return "pause" }
+        return state.hasStarted ? "resume" : "start"
     }
 }
