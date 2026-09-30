@@ -19,9 +19,9 @@ final class AppModel {
     var currentTask: (id: UUID, title: String)?
     var liveLook = LiveLook.placeholder
     var showTrackInIsland = true
-    /// Off screen, the Dynamic Island stays up even with the timer stopped, so a block can be started
-    /// from there. Starts true: a Live Activity button can launch the app straight into the background.
-    var isInBackground = true
+    /// The app is on screen. Only then may a Live Activity be created; starts false because a
+    /// Live Activity button can launch the app straight into the background.
+    var isAppActive = false
 
     private init() {
         do {
@@ -130,7 +130,7 @@ final class AppModel {
             look: liveLook,
             taskTitle: currentTask?.title,
             trackLine: showTrackInIsland ? spotify.track?.line : nil,
-            keepWhenIdle: isInBackground
+            appIsActive: isAppActive
         )
     }
 }

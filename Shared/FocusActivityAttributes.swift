@@ -20,7 +20,9 @@ struct FocusActivityAttributes: ActivityAttributes {
         var trackLine: String?
 
         /// The block has been started at some point (so a stopped timer is "paused", not "ready").
-        var hasStarted: Bool = false
+        /// Optional so a state saved by an older build still decodes.
+        var started: Bool?
+        var hasStarted: Bool { started ?? false }
 
         var isRunning: Bool { endDate != nil }
         var modeLabel: String { mode == "focus" ? "FOCUS" : "BREAK" }

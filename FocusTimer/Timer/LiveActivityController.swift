@@ -17,17 +17,25 @@ struct LiveLook: Equatable {
     )
 }
 
-/// Starts, updates and ends the Live Activity, and saves the snapshot the home/lock widgets read.
+/// Keeps one Live Activity (lock screen + Dynamic Island) alive at all times, running or not, and saves
+/// the snapshot the home/lock widgets read.
+///
+/// iOS only lets an app *create* a Live Activity while it's on screen, but an existing one survives the
+/// app being backgrounded or force-quit, and its buttons relaunch the app in the background. So we create
+/// it whenever the app is open, never end it when the timer stops, and renew it before iOS's 8-hour limit.
 @MainActor
 final class LiveActivityController {
     private var activity: Activity<FocusActivityAttributes>?
     private var lastState: FocusActivityAttributes.ContentState?
     private var lastSnapshot: TimerSnapshot?
 
-    /// - Parameter keepWhenIdle: keep (or create) the activity even with the timer stopped — used while
-    ///   the app is off screen so a block can be started from the Dynamic Island.
-    func update(engine: PomodoroEngine, look: LiveLook, taskTitle: String?, trackLine: String?, keepWhenIdle: Bool) {
-        let inProgress = engine.isRunning || engine.segmentStartedAt != nil
+    private let startedAtKey = "liveActivity.startedAt"
+    /// Renew well before iOS ends activities (8 hours), whenever the app is on screen.
+    private let renewAfter: TimeInterval = 6 * 60 * 60
+
+    /// - Parameter appIsActive: the app is on screen, so a new activity may be created if needed.
+    func update(engine: PomodoroEngine, look: LiveLook, taskTitle: String?, trackLine: String?, appIsActive: Bool) {
+        let hasStarted = engine.isRunning || engine.segmentStartedAt != nil
 
         let state = FocusActivityAttributes.ContentState(
             mode: engine.mode.rawValue,
@@ -40,7 +48,7 @@ final class LiveActivityController {
             textHex: look.textHex,
             dimHex: look.dimHex,
             trackLine: trackLine,
-            hasStarted: inProgress
+            started: hasStarted
         )
 
         saveSnapshot(TimerSnapshot(
@@ -50,40 +58,61 @@ final class LiveActivityController {
             textHex: look.textHex, dimHex: look.dimHex, trackLine: trackLine
         ))
 
-        if inProgress || keepWhenIdle {
-            guard state != lastState || activity?.attributes.prompt != look.prompt else { return }
-            lastState = state
-            show(state, prompt: look.prompt)
-        } else {
-            end()
+        let current = liveActivity()
+        let needsNew = current == nil || current?.attributes.prompt != look.prompt || (appIsActive && isOld)
+
+        if needsNew {
+            // Only possible while the app is on screen; from the background we keep what exists.
+            guard appIsActive else {
+                if let current { push(state, to: current) }
+                return
+            }
+            replace(current, with: state, prompt: look.prompt)
+        } else if let current, state != lastState {
+            push(state, to: current)
         }
     }
 
-    private func show(_ state: FocusActivityAttributes.ContentState, prompt: String) {
-        let content = ActivityContent(state: state, staleDate: nil)
-        let current = activity ?? Activity<FocusActivityAttributes>.activities.first
+    // MARK: Activity lifecycle
 
-        if let current, current.attributes.prompt == prompt {
-            activity = current
-            let id = current.id
-            Task { await Self.update(activityID: id, with: content) }
-            return
+    /// The activity we own, dropping duplicates or ones the user dismissed.
+    private func liveActivity() -> Activity<FocusActivityAttributes>? {
+        let alive = Activity<FocusActivityAttributes>.activities.filter {
+            $0.activityState == .active || $0.activityState == .stale
         }
-        // A new style means new attributes: replace the activity.
-        if let current {
-            let id = current.id
+        let keep = alive.first { $0.id == activity?.id } ?? alive.first
+        for extra in alive where extra.id != keep?.id {
+            let id = extra.id
             Task { await Self.end(activityID: id) }
         }
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-        activity = try? Activity.request(attributes: FocusActivityAttributes(prompt: prompt), content: content, pushType: nil)
+        activity = keep
+        return keep
     }
 
-    private func end() {
-        lastState = nil
-        let current = activity ?? Activity<FocusActivityAttributes>.activities.first
+    private var isOld: Bool {
+        guard let started = UserDefaults.standard.object(forKey: startedAtKey) as? Date else { return true }
+        return Date.now.timeIntervalSince(started) > renewAfter
+    }
+
+    private func replace(_ old: Activity<FocusActivityAttributes>?, with state: FocusActivityAttributes.ContentState, prompt: String) {
+        if let id = old?.id {
+            Task { await Self.end(activityID: id) }
+        }
         activity = nil
-        guard let id = current?.id else { return }
-        Task { await Self.end(activityID: id) }
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        let content = ActivityContent(state: state, staleDate: nil)
+        if let created = try? Activity.request(attributes: FocusActivityAttributes(prompt: prompt), content: content, pushType: nil) {
+            activity = created
+            lastState = state
+            UserDefaults.standard.set(Date.now, forKey: startedAtKey)
+        }
+    }
+
+    private func push(_ state: FocusActivityAttributes.ContentState, to current: Activity<FocusActivityAttributes>) {
+        lastState = state
+        let id = current.id
+        let content = ActivityContent(state: state, staleDate: nil)
+        Task { await Self.update(activityID: id, with: content) }
     }
 
     // `Activity` isn't Sendable, so the async calls look it up by id where they run
@@ -98,6 +127,8 @@ final class LiveActivityController {
         guard let activity = Activity<FocusActivityAttributes>.activities.first(where: { $0.id == activityID }) else { return }
         await activity.end(nil, dismissalPolicy: .immediate)
     }
+
+    // MARK: Widgets
 
     private func saveSnapshot(_ snapshot: TimerSnapshot) {
         guard snapshot != lastSnapshot else { return }
