@@ -29,8 +29,9 @@ jobs:
         env:
           SUPABASE_HOST: ${{ secrets.SUPABASE_HOST }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
         run: |
-          printf 'SUPABASE_HOST = %s\nSUPABASE_ANON_KEY = %s\n' "$SUPABASE_HOST" "$SUPABASE_ANON_KEY" > Config/Secrets.xcconfig
+          printf 'SUPABASE_HOST = %s\nSUPABASE_ANON_KEY = %s\nSPOTIFY_CLIENT_ID = %s\n' "$SUPABASE_HOST" "$SUPABASE_ANON_KEY" "$SPOTIFY_CLIENT_ID" > Config/Secrets.xcconfig
 
       - name: Generate Xcode project
         run: xcodegen generate
@@ -47,6 +48,19 @@ jobs:
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             | tee build.log | grep -E "error:|\*\* BUILD" || true
           grep -q "\*\* BUILD SUCCEEDED \*\*" build.log
+
+      - name: Ad-hoc sign with entitlements
+        # Sideloadly re-signs with the user's Apple ID; embedding the entitlements lets it carry
+        # the App Group over to the app and the widget extension. Sign the extension first.
+        run: |
+          APP=build/Build/Products/Release-iphoneos/FocusTimer.app
+          APPEX="$APP/PlugIns/FocusWidgets.appex"
+          test -d "$APPEX"
+          codesign --force --sign - --entitlements Config/FocusWidgets.entitlements --timestamp=none "$APPEX"
+          codesign --force --sign - --entitlements Config/FocusTimer.entitlements --timestamp=none "$APP"
+          codesign -d --entitlements - "$APPEX"
+          codesign -d --entitlements - "$APP"
+          /usr/libexec/PlistBuddy -c "Print :NSSupportsLiveActivities" "$APP/Info.plist"
 
       - name: Package .ipa
         run: |

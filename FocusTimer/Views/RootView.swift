@@ -5,7 +5,10 @@ import UIKit
 struct RootView: View {
     @Environment(PomodoroEngine.self) private var engine
     @Environment(SyncCoordinator.self) private var sync
+    @Environment(SpotifyService.self) private var spotify
     @Environment(\.scenePhase) private var scenePhase
+
+    private let model = AppModel.shared
 
     @Query(filter: #Predicate<TaskItem> { $0.deletedAt == nil }, sort: \TaskItem.createdAt)
     private var tasks: [TaskItem]
@@ -17,15 +20,15 @@ struct RootView: View {
     @AppStorage("restAccentHex") private var restAccentHex = ""
     @AppStorage("focusBackgroundHex") private var focusBackgroundHex = ""
     @AppStorage("restBackgroundHex") private var restBackgroundHex = ""
-    @AppStorage("fontCozy") private var fontCozy: TerminalFont = .jetbrains
-    @AppStorage("fontPowershell") private var fontPowershell: TerminalFont = .cascadia
+    @AppStorage(FontChoices.key) private var fontByStyle = ""
+    @AppStorage("spotifyInIsland") private var spotifyInIsland = true
 
     @State private var showSettings = false
 
     private var appearance: Appearance {
         Appearance(
             style: terminalStyle,
-            font: terminalStyle == .cozy ? fontCozy : fontPowershell,
+            font: FontChoices.font(for: terminalStyle, in: fontByStyle),
             focusAccent: Color(hexString: focusAccentHex),
             restAccent: Color(hexString: restAccentHex),
             focusBackground: Color(hexString: focusBackgroundHex),
@@ -37,6 +40,20 @@ struct RootView: View {
 
     private var activeTask: TaskItem? {
         tasks.filter { $0.isActive && !$0.isDone }.max { $0.updatedAt < $1.updatedAt }
+    }
+
+    /// Everything the Live Activity and widgets show that isn't timer state.
+    private struct LiveKey: Equatable {
+        let palette: Palette
+        let taskID: UUID?
+        let taskTitle: String?
+        let trackLine: String?
+        let showTrack: Bool
+    }
+
+    private var liveKey: LiveKey {
+        LiveKey(palette: palette, taskID: activeTask?.id, taskTitle: activeTask?.title,
+                trackLine: spotify.track?.line, showTrack: spotifyInIsland)
     }
 
     var body: some View {
@@ -63,6 +80,10 @@ struct RootView: View {
                         onReset: reset,
                         onSwitch: switchMode
                     )
+                    if spotify.isConnected {
+                        NowPlayingView(palette: palette)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                     TaskListView(palette: palette, tasks: tasks, activeID: activeTask?.id)
                 }
                 .padding(.horizontal, 20)
@@ -81,11 +102,30 @@ struct RootView: View {
         }
         .task { await runClock() }
         .task { await sync.syncNow() }
+        .task(id: spotify.isConnected && scenePhase == .active) {
+            // Now-playing refreshes only while the app is on screen; iOS gives no background polling.
+            guard spotify.isConnected, scenePhase == .active else { return }
+            await spotify.pollWhileActive()
+        }
+        .onChange(of: liveKey, initial: true) { _, key in
+            model.currentTask = activeTask.map { ($0.id, $0.title) }
+            model.showTrackInIsland = key.showTrack
+            model.liveLook = LiveLook(
+                style: key.palette.style.rawValue,
+                prompt: (key.palette.style.promptHost ?? "") + key.palette.style.promptPath + key.palette.style.promptSymbol
+                    .trimmingCharacters(in: .whitespaces),
+                accentHex: key.palette.accent.hexString,
+                backgroundHex: key.palette.background.hexString,
+                textHex: key.palette.text.hexString,
+                dimHex: key.palette.dim.hexString
+            )
+            model.refreshLiveActivity()
+        }
         #if DEBUG
         .task {
             // `-autostart` starts the timer on launch (used for CI screenshots).
             let args = ProcessInfo.processInfo.arguments
-            if args.contains("-autostart") { engine.start() }
+            if args.contains("-autostart") { model.start() }
             if let flag = args.firstIndex(of: "-style"), args.indices.contains(flag + 1),
                let style = TerminalStyle(rawValue: args[flag + 1]) {
                 terminalStyle = style
@@ -95,7 +135,8 @@ struct RootView: View {
         #endif
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
-            if let segment = engine.tick() { finish(segment) }
+            if let segment = engine.tick() { model.finish(segment) }
+            model.refreshLiveActivity()
             Task { await sync.syncNow() }
         }
         .onChange(of: engine.isRunning, initial: true) { _, running in
@@ -105,40 +146,15 @@ struct RootView: View {
 
     // MARK: Timer actions
 
-    private func start() {
-        engine.start()
-        guard let endDate = engine.endDate else { return }
-        Feedback.play(.start)
-        let mode = engine.mode
-        let title = activeTask?.title
-        Task {
-            await TimerNotifier.requestPermission()
-            await TimerNotifier.schedule(at: endDate, mode: mode, taskTitle: title)
-        }
-    }
-
-    private func pause() {
-        engine.pause()
-        Feedback.play(.pause)
-        TimerNotifier.cancel()
-    }
-
-    private func reset() {
-        engine.reset()
-        Feedback.play(.reset)
-        TimerNotifier.cancel()
-    }
-
-    private func switchMode(_ mode: TimerMode) {
-        engine.switchMode(to: mode)
-        Feedback.play(.switch)
-        TimerNotifier.cancel()
-    }
+    private func start() { model.start() }
+    private func pause() { model.pause() }
+    private func reset() { model.reset() }
+    private func switchMode(_ mode: TimerMode) { model.switchMode(mode) }
 
     private func runClock() async {
         var lastSecond: Int?
         while !Task.isCancelled {
-            if let segment = engine.tick() { finish(segment) }
+            if let segment = engine.tick() { model.finish(segment) }
             // One tick per whole second while running; a firmer one as each minute rolls over.
             if engine.isRunning {
                 let second = Int(engine.remaining.rounded(.up))
@@ -151,15 +167,6 @@ struct RootView: View {
             }
             try? await Task.sleep(for: .milliseconds(100))
         }
-    }
-
-    private func finish(_ segment: CompletedSegment) {
-        // If the app was in the background, the scheduled notification already rang.
-        if segment.lateBy < 3 {
-            ChimePlayer.shared.play()
-            Feedback.play(.complete)
-        }
-        sync.record(segment, taskID: segment.mode == .focus ? activeTask?.id : nil)
     }
 }
 
@@ -174,6 +181,7 @@ struct RootView: View {
     return RootView()
         .environment(PomodoroEngine(durations: .standard, defaults: nil))
         .environment(SyncCoordinator(context: container.mainContext, service: nil))
+        .environment(SpotifyService())
         .modelContainer(container)
         .preferredColorScheme(.dark)
 }

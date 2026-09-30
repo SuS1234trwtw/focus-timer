@@ -37,7 +37,7 @@ struct Palette: Equatable {
 
 /// The terminal the app imitates: its colours, prompt, and flavour text.
 enum TerminalStyle: String, CaseIterable, Identifiable {
-    case cozy, powershell
+    case cozy, powershell, cmd, ubuntu
 
     var id: String { rawValue }
 
@@ -45,11 +45,20 @@ enum TerminalStyle: String, CaseIterable, Identifiable {
         switch self {
         case .cozy: "Cozy"
         case .powershell: "PowerShell"
+        case .cmd: "CMD"
+        case .ubuntu: "Ubuntu"
         }
     }
 
-    /// JetBrains Mono for the cozy terminal; Cascadia Mono, Windows Terminal's font, for PowerShell.
-    var defaultFont: TerminalFont { self == .cozy ? .jetbrains : .cascadia }
+    /// Each terminal's own font: JetBrains Mono for cozy, Cascadia Mono (Windows Terminal) for
+    /// PowerShell and CMD, Ubuntu Mono for Ubuntu.
+    var defaultFont: TerminalFont {
+        switch self {
+        case .cozy: .jetbrains
+        case .powershell, .cmd: .cascadia
+        case .ubuntu: .ubuntu
+        }
+    }
 
     func basePalette(for mode: TimerMode) -> Palette {
         var palette = colors(for: mode)
@@ -72,21 +81,151 @@ enum TerminalStyle: String, CaseIterable, Identifiable {
         case (.powershell, .rest):
             Palette(background: Color(hex: 0x001A40), surface: Color(hex: 0x022452), border: Color(hex: 0x17437A),
                     accent: Color(hex: 0x16C60C), text: Color(hex: 0xEEEDF0), dim: Color(hex: 0x8FA8CC), style: self)
+        case (.cmd, .focus):
+            // Windows Terminal "Campbell": near-black, light grey text, bright blue.
+            Palette(background: Color(hex: 0x0C0C0C), surface: Color(hex: 0x161616), border: Color(hex: 0x2E2E2E),
+                    accent: Color(hex: 0x3B78FF), text: Color(hex: 0xCCCCCC), dim: Color(hex: 0x767676), style: self)
+        case (.cmd, .rest):
+            Palette(background: Color(hex: 0x101418), surface: Color(hex: 0x181D22), border: Color(hex: 0x2A3138),
+                    accent: Color(hex: 0x16C60C), text: Color(hex: 0xCCCCCC), dim: Color(hex: 0x767676), style: self)
+        case (.ubuntu, .focus):
+            // GNOME Terminal on Ubuntu: aubergine, white text, Ubuntu orange.
+            Palette(background: Color(hex: 0x300A24), surface: Color(hex: 0x3B1230), border: Color(hex: 0x5A2A4D),
+                    accent: Color(hex: 0xE95420), text: Color(hex: 0xFFFFFF), dim: Color(hex: 0xB08FA8), style: self)
+        case (.ubuntu, .rest):
+            Palette(background: Color(hex: 0x1E0A18), surface: Color(hex: 0x2A1223), border: Color(hex: 0x472340),
+                    accent: Color(hex: 0x8AE234), text: Color(hex: 0xFFFFFF), dim: Color(hex: 0xB08FA8), style: self)
         }
     }
 
+    /// Ubuntu's green `user@host` before the path; nil for the other terminals.
+    var promptHost: String? { self == .ubuntu ? "focus@ubuntu" : nil }
+    /// Colour of `promptHost` (GNOME Terminal's bold green).
+    var promptHostColor: Color { Color(hex: 0x8AE234) }
+
     /// Header prompt, split so the path can take the accent colour.
-    var promptPath: String { self == .cozy ? "~/focus " : "PS C:\\focus" }
-    var promptSymbol: String { self == .cozy ? "$ " : "> " }
-    var command: String { self == .cozy ? "pomodoro" : "Start-Pomodoro" }
-    var cursor: String { self == .cozy ? "▌" : "_" }
-    var tasksCommand: String { self == .cozy ? "$ tasks --list" : "PS> Get-Task" }
-    var emptyTasks: String {
-        self == .cozy ? "// nothing queued. add something to focus on." : "# No tasks found. Type below to run New-Task."
+    var promptPath: String {
+        switch self {
+        case .cozy: "~/focus "
+        case .powershell: "PS C:\\focus"
+        case .cmd: "C:\\Users\\focus"
+        case .ubuntu: ":~/focus"
+        }
     }
-    var linePrefix: String { self == .cozy ? "> " : "PS> " }
-    /// CRT scanlines and vignette suit the cozy terminal; the Windows console is flat.
+
+    var promptSymbol: String {
+        switch self {
+        case .cozy, .ubuntu: "$ "
+        case .powershell, .cmd: "> "
+        }
+    }
+
+    var command: String {
+        switch self {
+        case .cozy, .ubuntu: "pomodoro"
+        case .powershell: "Start-Pomodoro"
+        case .cmd: "pomodoro.exe"
+        }
+    }
+
+    var cursor: String {
+        switch self {
+        case .cozy, .ubuntu: "▌"
+        case .powershell, .cmd: "_"
+        }
+    }
+
+    var tasksCommand: String {
+        switch self {
+        case .cozy: "$ tasks --list"
+        case .powershell: "PS> Get-Task"
+        case .cmd: "C:\\focus> dir tasks"
+        case .ubuntu: "$ ls ~/tasks"
+        }
+    }
+
+    var emptyTasks: String {
+        switch self {
+        case .cozy: "// nothing queued. add something to focus on."
+        case .powershell: "# No tasks found. Type below to run New-Task."
+        case .cmd: "File Not Found"
+        case .ubuntu: "ls: cannot access 'tasks': No such file or directory"
+        }
+    }
+
+    var linePrefix: String {
+        switch self {
+        case .cozy, .ubuntu: "> "
+        case .powershell: "PS> "
+        case .cmd: "C:\\> "
+        }
+    }
+
+    var settingsTitle: String {
+        switch self {
+        case .cozy: "~/config"
+        case .powershell: "Get-Config"
+        case .cmd: "C:\\focus>config"
+        case .ubuntu: "~/.config/focus"
+        }
+    }
+
+    var versionCommand: String {
+        switch self {
+        case .cozy, .ubuntu: "$ focus --version"
+        case .powershell: "PS> (Get-Focus).Version"
+        case .cmd: "C:\\focus> ver"
+        }
+    }
+
+    func sectionHeader(_ name: String) -> String {
+        switch self {
+        case .cozy, .ubuntu: "# \(name)"
+        case .powershell: "## \(name.capitalized)"
+        case .cmd: "REM \(name)"
+        }
+    }
+
+    /// CRT scanlines and vignette suit the cozy terminal; the others are flat modern consoles.
     var hasScanlines: Bool { self == .cozy }
+}
+
+/// Which font each style uses, stored as one string ("cozy=jetbrains;cmd=vt323") so new styles
+/// need no new settings keys.
+enum FontChoices {
+    static let key = "fontByStyle"
+
+    static func font(for style: TerminalStyle, in stored: String) -> TerminalFont {
+        parse(stored)[style] ?? style.defaultFont
+    }
+
+    static func setting(_ font: TerminalFont, for style: TerminalStyle, in stored: String) -> String {
+        var choices = parse(stored)
+        choices[style] = font
+        return TerminalStyle.allCases.compactMap { s in choices[s].map { "\(s.rawValue)=\($0.rawValue)" } }.joined(separator: ";")
+    }
+
+    static func parse(_ stored: String) -> [TerminalStyle: TerminalFont] {
+        var result: [TerminalStyle: TerminalFont] = [:]
+        for pair in stored.split(separator: ";") {
+            let parts = pair.split(separator: "=", maxSplits: 1).map(String.init)
+            guard parts.count == 2, let style = TerminalStyle(rawValue: parts[0]), let font = TerminalFont(rawValue: parts[1]) else { continue }
+            result[style] = font
+        }
+        return result
+    }
+
+    /// Carries over the per-style keys used by 1.5.0 the first time the new key is read.
+    static func migrate(_ defaults: UserDefaults = .standard) {
+        guard defaults.string(forKey: key) == nil else { return }
+        var stored = ""
+        for (oldKey, style) in [("fontCozy", TerminalStyle.cozy), ("fontPowershell", .powershell)] {
+            if let raw = defaults.string(forKey: oldKey), let font = TerminalFont(rawValue: raw) {
+                stored = setting(font, for: style, in: stored)
+            }
+        }
+        defaults.set(stored, forKey: key)
+    }
 }
 
 /// The user's look: a terminal style plus optional colours picked on the colour wheel.
@@ -141,7 +280,7 @@ enum Theme {
 
 /// Monospaced terminal fonts the user can pick per style.
 enum TerminalFont: String, CaseIterable, Identifiable {
-    case jetbrains, cascadia, sfMono, menlo, courier, plex, fira, sourceCode, space, ubuntu, anonymous, shareTech, vt323
+    case jetbrains, cascadia, sfMono, menlo, courier, plex, fira, sourceCode, space, ubuntu, dejavu, noto, anonymous, shareTech, vt323
 
     var id: String { rawValue }
 
@@ -157,6 +296,8 @@ enum TerminalFont: String, CaseIterable, Identifiable {
         case .sourceCode: "Source Code Pro"
         case .space: "Space Mono"
         case .ubuntu: "Ubuntu Mono"
+        case .dejavu: "DejaVu Sans Mono"
+        case .noto: "Noto Sans Mono"
         case .anonymous: "Anonymous Pro"
         case .shareTech: "Share Tech Mono"
         case .vt323: "VT323"
@@ -184,6 +325,8 @@ enum TerminalFont: String, CaseIterable, Identifiable {
         case .sourceCode: .bundled(light: "SourceCodePro-Light", regular: "SourceCodePro-Regular", bold: "SourceCodePro-Bold")
         case .space: .bundled(light: nil, regular: "SpaceMono-Regular", bold: "SpaceMono-Bold")
         case .ubuntu: .bundled(light: nil, regular: "UbuntuMono-Regular", bold: "UbuntuMono-Bold")
+        case .dejavu: .bundled(light: nil, regular: "DejaVuSansMono", bold: "DejaVuSansMono-Bold")
+        case .noto: .bundled(light: "NotoSansMono-Light", regular: "NotoSansMono-Regular", bold: "NotoSansMono-Bold")
         case .anonymous: .bundled(light: nil, regular: "AnonymousPro-Regular", bold: "AnonymousPro-Bold")
         case .shareTech: .bundled(light: nil, regular: "ShareTechMono-Regular", bold: nil)
         case .vt323: .bundled(light: nil, regular: "VT323-Regular", bold: nil)
@@ -235,38 +378,3 @@ enum FontRegistry {
     }
 }
 
-extension Color {
-    init(hex: UInt32) {
-        self.init(
-            red: Double((hex >> 16) & 0xFF) / 255,
-            green: Double((hex >> 8) & 0xFF) / 255,
-            blue: Double(hex & 0xFF) / 255
-        )
-    }
-
-    /// Parses "RRGGBB" (as stored in AppStorage); nil for an empty or malformed string.
-    init?(hexString: String) {
-        let digits = hexString.trimmingCharacters(in: CharacterSet(charactersIn: "# "))
-        guard digits.count == 6, let value = UInt32(digits, radix: 16) else { return nil }
-        self.init(hex: value)
-    }
-
-    private var rgb: (r: CGFloat, g: CGFloat, b: CGFloat) {
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        UIColor(self).getRed(&r, green: &g, blue: &b, alpha: &a)
-        return (r, g, b)
-    }
-
-    /// "RRGGBB", for storing a colour picked on the wheel.
-    var hexString: String {
-        let (r, g, b) = rgb
-        func byte(_ v: CGFloat) -> Int { Int((min(max(v, 0), 1) * 255).rounded()) }
-        return String(format: "%02lX%02lX%02lX", byte(r), byte(g), byte(b))
-    }
-
-    /// Relative luminance below the midpoint: light text reads better on it.
-    var isDark: Bool {
-        let (r, g, b) = rgb
-        return 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.5
-    }
-}

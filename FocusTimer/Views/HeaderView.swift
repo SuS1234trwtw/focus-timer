@@ -12,6 +12,9 @@ struct HeaderView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 0) {
+                if let host = palette.style.promptHost {
+                    Text(host).foregroundStyle(palette.style.promptHostColor)
+                }
                 Text(palette.style.promptPath).foregroundStyle(palette.accent)
                 Text(palette.style.promptSymbol).foregroundStyle(palette.dim)
                 Text(palette.style.command).foregroundStyle(palette.text)

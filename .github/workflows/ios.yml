@@ -86,6 +86,13 @@ jobs:
           xcrun simctl launch "$UDID" com.focustimer.app -openSettings
           sleep 6
           xcrun simctl io "$UDID" screenshot screenshots/4-settings.png
+          # 5) CMD and 6) Ubuntu styles, running
+          for style in cmd ubuntu; do
+            xcrun simctl terminate "$UDID" com.focustimer.app
+            xcrun simctl launch "$UDID" com.focustimer.app -seedDemo -style $style -autostart
+            sleep 6
+            xcrun simctl io "$UDID" screenshot "screenshots/5-$style.png"
+          done
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v5

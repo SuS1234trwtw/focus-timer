@@ -29,6 +29,24 @@ fetch "$G/ofl/sharetechmono/ShareTechMono-Regular.ttf"
 SCP="https://raw.githubusercontent.com/adobe-fonts/source-code-pro/release/TTF"
 for w in Light Regular Bold; do fetch "$SCP/SourceCodePro-$w.ttf"; done
 
+NOTO="https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMono/hinted/ttf"
+for w in Light Regular Bold; do fetch "$NOTO/NotoSansMono-$w.ttf"; done
+
+# DejaVu Sans Mono (the classic Linux terminal font) ships as a release zip.
+if [ ! -f "$DEST/DejaVuSansMono.ttf" ]; then
+  DEJAVU="https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.zip"
+  TMP="$(mktemp -d)"
+  if curl -fsSL "$DEJAVU" -o "$TMP/dejavu.zip"; then
+    for f in DejaVuSansMono DejaVuSansMono-Bold; do
+      unzip -j -o -q "$TMP/dejavu.zip" "*ttf/$f.ttf" -d "$DEST" && echo "fetched $f.ttf" \
+        || echo "warning: $f.ttf not in archive" >&2
+    done
+  else
+    echo "warning: could not fetch DejaVu" >&2
+  fi
+  rm -rf "$TMP"
+fi
+
 # Cascadia Mono (Windows Terminal's font) ships as a release zip.
 if [ ! -f "$DEST/CascadiaMono-Regular.ttf" ]; then
   CASCADIA="https://github.com/microsoft/cascadia-code/releases/download/v2407.24/CascadiaCode-2407.24.zip"

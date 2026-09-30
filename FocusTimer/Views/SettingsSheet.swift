@@ -6,6 +6,8 @@ struct SettingsSheet: View {
     let palette: Palette
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.webAuthenticationSession) private var webAuthenticationSession
+    @Environment(SpotifyService.self) private var spotify
 
     @AppStorage("focusMinutes") private var focusMinutes = 25
     @AppStorage("restMinutes") private var restMinutes = 5
@@ -14,8 +16,8 @@ struct SettingsSheet: View {
     @AppStorage("restAccentHex") private var restAccentHex = ""
     @AppStorage("focusBackgroundHex") private var focusBackgroundHex = ""
     @AppStorage("restBackgroundHex") private var restBackgroundHex = ""
-    @AppStorage("fontCozy") private var fontCozy: TerminalFont = .jetbrains
-    @AppStorage("fontPowershell") private var fontPowershell: TerminalFont = .cascadia
+    @AppStorage(FontChoices.key) private var fontByStyle = ""
+    @AppStorage("spotifyInIsland") private var spotifyInIsland = true
     @AppStorage(Feedback.Key.sounds) private var soundsEnabled = true
     @AppStorage(Feedback.Key.haptics) private var hapticsEnabled = true
     @AppStorage(Feedback.Key.tickSound) private var tickSound = true
@@ -36,6 +38,7 @@ struct SettingsSheet: View {
                 fontSection
                 colorSection
                 feedbackSection
+                musicSection
                 aboutSection
             }
             .font(palette.mono(15, relativeTo: .body))
@@ -43,7 +46,7 @@ struct SettingsSheet: View {
             .tint(palette.accent)
             .scrollContentBackground(.hidden)
             .background(palette.background)
-            .navigationTitle(terminalStyle == .cozy ? "~/config" : "Get-Config")
+            .navigationTitle(terminalStyle.settingsTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -57,7 +60,7 @@ struct SettingsSheet: View {
         // A soft key click for every change made here.
         .onChange(of: terminalStyle) { Feedback.play(.tap) }
         .onChange(of: [focusMinutes, restMinutes]) { Feedback.play(.tap) }
-        .onChange(of: [fontCozy, fontPowershell]) { Feedback.play(.tap) }
+        .onChange(of: fontByStyle) { Feedback.play(.tap) }
         .onChange(of: [focusAccentHex, restAccentHex, focusBackgroundHex, restBackgroundHex]) { Feedback.play(.tap) }
         .onChange(of: [soundsEnabled, hapticsEnabled, tickSound, tickHaptics]) { Feedback.play(.tap) }
     }
@@ -103,7 +106,7 @@ struct SettingsSheet: View {
 
     private var styleSection: some View {
         Section {
-            HStack(spacing: 10) {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                 ForEach(TerminalStyle.allCases) { style in
                     styleCard(style)
                 }
@@ -123,6 +126,7 @@ struct SettingsSheet: View {
         } label: {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 0) {
+                    if let host = style.promptHost { Text(host).foregroundStyle(style.promptHostColor) }
                     Text(style.promptPath).foregroundStyle(preview.accent)
                     Text(style.promptSymbol).foregroundStyle(preview.dim)
                     Text(style.cursor).foregroundStyle(preview.accent)
@@ -152,7 +156,10 @@ struct SettingsSheet: View {
 
     /// The font for the current style; each style remembers its own.
     private var selectedFont: Binding<TerminalFont> {
-        terminalStyle == .cozy ? $fontCozy : $fontPowershell
+        Binding(
+            get: { FontChoices.font(for: terminalStyle, in: fontByStyle) },
+            set: { fontByStyle = FontChoices.setting($0, for: terminalStyle, in: fontByStyle) }
+        )
     }
 
     private var fontSection: some View {
@@ -186,7 +193,7 @@ struct SettingsSheet: View {
                     Text(font.name)
                         .font(font.font(15, .bold, relativeTo: .body))
                         .foregroundStyle(selected ? palette.accent : palette.text)
-                    Text("\(terminalStyle.promptPath)\(terminalStyle.promptSymbol)25:00 0Oo1lI")
+                    Text("\(terminalStyle.promptHost ?? "")\(terminalStyle.promptPath)\(terminalStyle.promptSymbol)25:00 0Oo1lI")
                         .font(font.font(12, .regular, relativeTo: .caption))
                         .foregroundStyle(palette.dim)
                         .lineLimit(1)
@@ -281,6 +288,44 @@ struct SettingsSheet: View {
         }
     }
 
+    // MARK: Music
+
+    private var musicSection: some View {
+        Section {
+            if !spotify.isConfigured {
+                Text("Spotify isn't set up in this build yet.")
+                    .foregroundStyle(palette.dim)
+            } else if spotify.isConnected {
+                LabeledContent("spotify", value: "linked")
+                Toggle("show song in Dynamic Island", isOn: $spotifyInIsland)
+                Button("unlink spotify", systemImage: "xmark.circle", role: .destructive) {
+                    Feedback.play(.tap)
+                    spotify.disconnect()
+                }
+            } else {
+                Button {
+                    Feedback.play(.tap)
+                    Task { await spotify.connect(using: webAuthenticationSession) }
+                } label: {
+                    Label("connect spotify", systemImage: "music.note")
+                        .foregroundStyle(palette.accent)
+                }
+            }
+            if let message = spotify.message {
+                Text(message)
+                    .font(palette.mono(11, relativeTo: .caption))
+                    .foregroundStyle(Color(hex: 0xE0786A))
+            }
+        } header: {
+            header("music")
+        } footer: {
+            Text("Log in to Spotify to show the song under the timer and in the Dynamic Island. Play/pause/skip need Spotify Premium. The song updates while the app is open.")
+                .font(palette.mono(11, relativeTo: .caption))
+                .foregroundStyle(palette.dim)
+        }
+        .listRowBackground(palette.surface)
+    }
+
     // MARK: About
 
     /// e.g. "1.4.0 (6)", read from the app bundle so it always matches the installed build.
@@ -294,7 +339,7 @@ struct SettingsSheet: View {
     private var aboutSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 4) {
-                Text(terminalStyle == .cozy ? "$ focus --version" : "PS> (Get-Focus).Version")
+                Text(terminalStyle.versionCommand)
                     .foregroundStyle(palette.dim)
                 Text("focus \(versionString)")
                     .foregroundStyle(palette.accent)
@@ -310,7 +355,7 @@ struct SettingsSheet: View {
     }
 
     private func header(_ name: String) -> some View {
-        Text(terminalStyle == .cozy ? "# \(name)" : "## \(name.capitalized)")
+        Text(terminalStyle.sectionHeader(name))
             .font(palette.mono(12, .bold, relativeTo: .caption))
             .foregroundStyle(palette.accent)
     }
