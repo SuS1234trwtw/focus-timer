@@ -6,10 +6,7 @@ final class TaskItem {
     @Attribute(.unique) var id: UUID
     var title: String
     var isDone: Bool
-    /// Legacy "focusing" flag, still synced for older builds; the current task is now the first open one by order.
     var isActive: Bool
-    /// User order, ascending. New tasks get the lowest value so they appear on top.
-    var sortIndex: Double = 0
     var createdAt: Date
     var updatedAt: Date
     /// Tombstone: deleted locally, kept until the deletion has been pushed.
@@ -21,7 +18,6 @@ final class TaskItem {
         title: String,
         isDone: Bool = false,
         isActive: Bool = false,
-        sortIndex: Double = 0,
         createdAt: Date = .now,
         updatedAt: Date = .now,
         deletedAt: Date? = nil,
@@ -31,7 +27,6 @@ final class TaskItem {
         self.title = title
         self.isDone = isDone
         self.isActive = isActive
-        self.sortIndex = sortIndex
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.deletedAt = deletedAt
@@ -42,16 +37,6 @@ final class TaskItem {
     func touch(_ date: Date = .now) {
         updatedAt = date
         needsSync = true
-    }
-}
-
-extension TaskItem {
-    /// Live tasks in the user's order: lowest sortIndex first, newest first on ties.
-    static var ordered: FetchDescriptor<TaskItem> {
-        FetchDescriptor<TaskItem>(
-            predicate: #Predicate<TaskItem> { task in task.deletedAt == nil },
-            sortBy: [SortDescriptor(\TaskItem.sortIndex), SortDescriptor(\TaskItem.createdAt, order: .reverse)]
-        )
     }
 }
 
@@ -79,41 +64,33 @@ final class FocusSessionRecord {
 /// Task mutations used by the UI. Each one marks rows dirty for sync; the caller saves and schedules a sync.
 @MainActor
 enum TaskActions {
-    /// Adds a task on top of the list, so the newest task is the one shown under the timer.
-    static func add(_ rawTitle: String, in context: ModelContext, above tasks: [TaskItem]) {
+    static func add(_ rawTitle: String, in context: ModelContext) {
         let title = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
-        context.insert(TaskItem(title: String(title.prefix(500)), sortIndex: topIndex(above: tasks)))
+        context.insert(TaskItem(title: String(title.prefix(500))))
     }
 
     static func toggleDone(_ task: TaskItem) {
         task.isDone.toggle()
-        task.isActive = false
+        if task.isDone { task.isActive = false }
         task.touch()
     }
 
-    /// Puts a task first (reopening it if it was done), making it the current task.
-    static func moveToTop(_ task: TaskItem, among tasks: [TaskItem]) {
-        task.sortIndex = topIndex(above: tasks.filter { $0.id != task.id })
-        task.isDone = false
-        task.touch()
-    }
-
-    /// Persists a new user order; only rows whose position changed are marked dirty.
-    static func reorder(_ ordered: [TaskItem]) {
-        for (index, task) in ordered.enumerated() where task.sortIndex != Double(index) {
-            task.sortIndex = Double(index)
-            task.touch()
+    /// Makes `task` the single active task, or clears it if it already was.
+    static func toggleActive(_ task: TaskItem, among tasks: [TaskItem]) {
+        let activate = !task.isActive
+        for other in tasks where other.isActive && other.id != task.id {
+            other.isActive = false
+            other.touch()
         }
+        task.isActive = activate
+        if activate { task.isDone = false }
+        task.touch()
     }
 
     static func delete(_ task: TaskItem) {
         task.isActive = false
         task.deletedAt = .now
         task.touch()
-    }
-
-    static func topIndex(above tasks: [TaskItem]) -> Double {
-        (tasks.map(\.sortIndex).min() ?? 1) - 1
     }
 }

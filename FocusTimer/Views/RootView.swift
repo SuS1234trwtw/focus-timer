@@ -7,112 +7,58 @@ struct RootView: View {
     @Environment(SyncCoordinator.self) private var sync
     @Environment(\.scenePhase) private var scenePhase
 
-    /// User order: lowest sortIndex first; new tasks go on top.
-    @Query(TaskItem.ordered) private var tasks: [TaskItem]
+    @Query(filter: #Predicate<TaskItem> { $0.deletedAt == nil }, sort: \TaskItem.createdAt)
+    private var tasks: [TaskItem]
 
-    @AppStorage("timerFont") private var timerFont: TimerFont = .carved
-    @AppStorage("chimeEnabled") private var chimeEnabled = true
-    @AppStorage("tickHaptics") private var tickHaptics = true
-    @AppStorage("colorTheme") private var colorTheme: ColorTheme = .graphite
-
-    @State private var reelPosition: Int?
-    @State private var showTasks = false
-    @State private var showSettings = false
-    @State private var burstCount = 0
     @State private var chimeCount = 0
-    @State private var resetCount = 0
-    @State private var taskDoneCount = 0
 
-    private static let reelValues = Array(PomodoroEngine.minuteRange.reversed())
+    private var palette: Palette { Theme.palette(for: engine.mode) }
 
-    /// Overtime previews the next mode, so a finished focus block flips to the light break palette.
-    private var shownMode: TimerMode { engine.isOvertime ? engine.mode.next : engine.mode }
-    private var palette: Palette { colorTheme.palette(for: shownMode) }
-
-    /// The task shown under the timer: the first open one in the user's order.
-    private var currentTask: TaskItem? { tasks.first { !$0.isDone } }
-    private var openCount: Int { tasks.filter { !$0.isDone }.count }
+    private var activeTask: TaskItem? {
+        tasks.filter { $0.isActive && !$0.isDone }.max { $0.updatedAt < $1.updatedAt }
+    }
 
     var body: some View {
         ZStack {
             palette.background.ignoresSafeArea()
-            GrainOverlay().ignoresSafeArea()
-
-            NumeralReel(
-                values: Self.reelValues,
-                position: $reelPosition,
-                font: timerFont,
-                palette: palette,
-                litValue: engine.isRunning ? engine.displayMinutes : nil,
-                locked: engine.isRunning || engine.isOvertime
-            )
-            .ignoresSafeArea()
-            .opacity(engine.isOvertime ? 0 : 1)
-            .contentShape(.rect)
-            .onTapGesture(perform: primaryAction)
-            .onLongPressGesture(minimumDuration: 0.6, perform: reset)
-            .accessibilityAction(named: engine.isRunning ? "Pause" : "Start", primaryAction)
-            .accessibilityAction(named: "Reset", reset)
-
-            if engine.isOvertime {
-                overtimeGlyph
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.96).combined(with: .opacity)
-                            .animation(.timingCurve(0.34, 1.36, 0.64, 1, duration: 0.5)),
-                        removal: .opacity.animation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.15))
-                    ))
-            }
-
-            StartBurst(trigger: burstCount, color: palette.numeralLit)
+            TerminalOverlay(accent: palette.accent)
                 .ignoresSafeArea()
+                .allowsHitTesting(false)
 
-            TickHaptics(enabled: tickHaptics)
-
-            VStack(spacing: 14) {
-                topBar
-                Spacer()
-                Readout(palette: palette)
-                taskCard
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    HeaderView(
+                        palette: palette,
+                        mode: engine.mode,
+                        sessionsToday: engine.completedFocusCount,
+                        syncStatus: sync.status
+                    )
+                    TimerView(
+                        palette: palette,
+                        activeTaskTitle: activeTask?.title,
+                        onStart: start,
+                        onPause: pause,
+                        onReset: reset,
+                        onSwitch: switchMode
+                    )
+                    TaskListView(palette: palette, tasks: tasks, activeID: activeTask?.id)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 40)
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 8)
+            .scrollDismissesKeyboard(.interactively)
         }
-        .animation(.easeInOut(duration: 0.9), value: shownMode)
-        .animation(.smooth(duration: 0.5), value: engine.isOvertime)
-        .preferredColorScheme(shownMode == .rest ? .light : .dark)
-        .tint(palette.ink)
+        .animation(.easeInOut(duration: 1.2), value: engine.mode)
         .sensoryFeedback(.success, trigger: chimeCount)
-        .sensoryFeedback(.success, trigger: taskDoneCount)
-        .sensoryFeedback(.impact(weight: .medium), trigger: engine.isRunning)
-        .sensoryFeedback(.impact(weight: .heavy), trigger: resetCount)
-        .sheet(isPresented: $showTasks) { TasksSheet().tint(palette.ink) }
-        .sheet(isPresented: $showSettings) { SettingsSheet().tint(palette.ink) }
         .task { await runClock() }
         .task { await sync.syncNow() }
-        .onAppear {
-            reelPosition = engine.displayMinutes
-            #if DEBUG
-            let args = ProcessInfo.processInfo.arguments
-            if args.contains("-autostart") { engine.start(); burstCount += 1 }
-            if args.contains("-openSettings") { showSettings = true }
-            if args.contains("-openTasks") { showTasks = true }
-            if let flag = args.firstIndex(of: "-theme"), args.indices.contains(flag + 1),
-               let theme = ColorTheme(rawValue: args[flag + 1]) {
-                colorTheme = theme
-            }
-            #endif
+        #if DEBUG
+        .task {
+            // `-autostart` starts the timer on launch (used for CI screenshots).
+            if ProcessInfo.processInfo.arguments.contains("-autostart") { engine.start() }
         }
-        .onChange(of: reelPosition) { _, value in
-            // User scrolled the reel: that's the new block length (resets a paused block).
-            guard let value, !engine.isRunning, !engine.isOvertime, value != engine.displayMinutes else { return }
-            engine.setMinutes(value)
-            TimerNotifier.cancel()
-        }
-        .onChange(of: engine.displayMinutes) { _, value in
-            // Timer ticked past a minute, or the mode changed: roll the reel to follow, like a mechanical counter.
-            guard reelPosition != value else { return }
-            withAnimation(.spring(duration: 0.7, bounce: 0.12)) { reelPosition = value }
-        }
+        #endif
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             if let segment = engine.tick() { finish(segment) }
@@ -123,133 +69,32 @@ struct RootView: View {
         }
     }
 
-    // MARK: Pieces
-
-    private var topBar: some View {
-        HStack {
-            iconButton("checklist", label: "Tasks") { showTasks = true }
-            Spacer()
-            iconButton("slider.horizontal.3", label: "Settings") { showSettings = true }
-        }
-    }
-
-    private func iconButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 19, weight: .semibold))
-                .foregroundStyle(palette.ink)
-                .frame(width: 44, height: 44)
-                .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
-    }
-
-    /// The current task under the timer: check it off here, or tap to open the task list.
-    private var taskCard: some View {
-        HStack(spacing: 12) {
-            if let task = currentTask {
-                Button {
-                    complete(task)
-                } label: {
-                    Image(systemName: "circle")
-                        .font(.system(size: 20, weight: .medium))
-                        .frame(width: 28, height: 28)
-                        .contentShape(.circle)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Complete \(task.title)")
-
-                Text(task.title)
-                    .font(.system(size: 15, weight: .semibold))
-                    .lineLimit(1)
-                    .id(task.id)
-                    .transition(.blurReplace(.downUp))
-
-                Spacer(minLength: 8)
-
-                if openCount > 1 {
-                    Text("+\(openCount - 1)")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(palette.secondary)
-                        .contentTransition(.numericText())
-                }
-            } else {
-                Image(systemName: "plus")
-                    .font(.system(size: 15, weight: .semibold))
-                    .frame(width: 28, height: 28)
-                Text("Add a task")
-                    .font(.system(size: 15, weight: .semibold))
-                Spacer(minLength: 8)
-            }
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(palette.secondary)
-        }
-        .foregroundStyle(palette.ink)
-        .padding(.leading, 12)
-        .padding(.trailing, 16)
-        .padding(.vertical, 10)
-        .frame(maxWidth: 380)
-        .glassEffect(.regular.interactive(), in: .capsule)
-        .contentShape(.capsule)
-        .onTapGesture { showTasks = true }
-        .accessibilityElement(children: .contain)
-        .accessibilityHint("Opens your task list")
-    }
-
-    private var overtimeGlyph: some View {
-        GeometryReader { proxy in
-            NumeralFace(text: "+", font: timerFont, lit: true, palette: palette)
-                .frame(width: proxy.size.width * 0.5, height: proxy.size.height * 0.3)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .contentShape(.rect)
-        .onTapGesture(perform: primaryAction)
-        .accessibilityLabel("Time's up")
-        .accessibilityAddTraits(.isButton)
-    }
-
-    // MARK: Actions
-
-    private func primaryAction() {
-        if engine.isOvertime {
-            engine.advance()
-            TimerNotifier.cancel()
-            return
-        }
-        if engine.isRunning {
-            engine.pause()
-            TimerNotifier.cancel()
-        } else {
-            start()
-        }
-    }
+    // MARK: Timer actions
 
     private func start() {
         engine.start()
-        burstCount += 1
         guard let endDate = engine.endDate else { return }
         let mode = engine.mode
-        let title = currentTask?.title
-        let sound = chimeEnabled
+        let title = activeTask?.title
         Task {
             await TimerNotifier.requestPermission()
-            await TimerNotifier.schedule(at: endDate, mode: mode, taskTitle: title, sound: sound)
+            await TimerNotifier.schedule(at: endDate, mode: mode, taskTitle: title)
         }
     }
 
-    private func reset() {
-        guard !engine.isOvertime else { return }
-        engine.reset()
-        resetCount += 1
+    private func pause() {
+        engine.pause()
         TimerNotifier.cancel()
     }
 
-    private func complete(_ task: TaskItem) {
-        withAnimation(.easeInOut(duration: 0.15)) { TaskActions.toggleDone(task) }
-        taskDoneCount += 1
-        sync.scheduleSync()
+    private func reset() {
+        engine.reset()
+        TimerNotifier.cancel()
+    }
+
+    private func switchMode(_ mode: TimerMode) {
+        engine.switchMode(to: mode)
+        TimerNotifier.cancel()
     }
 
     private func runClock() async {
@@ -262,69 +107,10 @@ struct RootView: View {
     private func finish(_ segment: CompletedSegment) {
         // If the app was in the background, the scheduled notification already rang.
         if segment.lateBy < 3 {
-            if chimeEnabled { ChimePlayer.shared.play() }
+            ChimePlayer.shared.play()
             chimeCount += 1
         }
-        sync.record(segment, taskID: segment.mode == .focus ? currentTask?.id : nil)
-    }
-}
-
-/// The small time readout and caption. Its own view so only it redraws on each clock tick.
-private struct Readout: View {
-    @Environment(PomodoroEngine.self) private var engine
-    let palette: Palette
-
-    var body: some View {
-        VStack(spacing: 4) {
-            Group {
-                if let finishedAt = engine.finishedAt {
-                    TimelineView(.animation) { context in
-                        Text("+" + max(0, context.date.timeIntervalSince(finishedAt)).stopwatchString)
-                    }
-                } else {
-                    Text(engine.remaining.clockString)
-                        .contentTransition(.numericText(countsDown: true))
-                        .animation(.easeInOut(duration: 0.15), value: engine.remaining.clockString)
-                }
-            }
-            .font(Theme.readout(26))
-            .foregroundStyle(palette.ink)
-
-            Text(caption)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(palette.secondary)
-                .lineLimit(1)
-                .contentTransition(.opacity)
-        }
-        .frame(maxWidth: .infinity)
-        .allowsHitTesting(false)
-    }
-
-    private var caption: String {
-        if engine.isOvertime {
-            return engine.mode == .focus ? "time's up · tap for a break" : "break's over · tap to focus"
-        }
-        if engine.isRunning { return engine.mode.label }
-        if engine.isInProgress { return "paused · hold to reset" }
-        let done = engine.completedFocusCount
-        return "\(engine.mode.label) · tap to start" + (done > 0 ? " · \(done) done" : "")
-    }
-}
-
-/// A soft tick each second while running, a firmer knock as each minute rolls over.
-/// Its own view so reading the clock doesn't redraw the rest of the screen.
-private struct TickHaptics: View {
-    @Environment(PomodoroEngine.self) private var engine
-    let enabled: Bool
-
-    var body: some View {
-        Color.clear
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-            .sensoryFeedback(trigger: engine.isRunning ? Int(engine.remaining.rounded(.up)) : -1) { _, second in
-                guard enabled, second > 0 else { return nil }
-                return second % 60 == 0 ? .impact(weight: .medium, intensity: 0.9) : .impact(weight: .light, intensity: 0.45)
-            }
+        sync.record(segment, taskID: segment.mode == .focus ? activeTask?.id : nil)
     }
 }
 
@@ -333,9 +119,12 @@ private struct TickHaptics: View {
         for: TaskItem.self, FocusSessionRecord.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
-    container.mainContext.insert(TaskItem(title: "write the sync layer"))
+    container.mainContext.insert(TaskItem(title: "write the sync layer", isActive: true))
+    container.mainContext.insert(TaskItem(title: "review PR", isDone: true))
+    container.mainContext.insert(TaskItem(title: "inbox zero"))
     return RootView()
-        .environment(PomodoroEngine(defaults: nil))
+        .environment(PomodoroEngine(durations: .standard, defaults: nil))
         .environment(SyncCoordinator(context: container.mainContext, service: nil))
         .modelContainer(container)
+        .preferredColorScheme(.dark)
 }

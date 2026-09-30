@@ -6,7 +6,6 @@ struct TaskDTO: Codable, Sendable, Equatable {
     let title: String
     let isDone: Bool
     let isActive: Bool
-    let sortIndex: Double
     let createdAt: Date
     let updatedAt: Date
     let deletedAt: Date?
@@ -15,7 +14,6 @@ struct TaskDTO: Codable, Sendable, Equatable {
         case id, title
         case isDone = "is_done"
         case isActive = "is_active"
-        case sortIndex = "sort_index"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case deletedAt = "deleted_at"
@@ -60,12 +58,12 @@ enum SyncMerge {
 
 extension TaskItem {
     var dto: TaskDTO {
-        TaskDTO(id: id, title: title, isDone: isDone, isActive: isActive, sortIndex: sortIndex,
+        TaskDTO(id: id, title: title, isDone: isDone, isActive: isActive,
                 createdAt: createdAt, updatedAt: updatedAt, deletedAt: deletedAt)
     }
 
     static func make(from dto: TaskDTO) -> TaskItem {
-        TaskItem(id: dto.id, title: dto.title, isDone: dto.isDone, isActive: dto.isActive, sortIndex: dto.sortIndex,
+        TaskItem(id: dto.id, title: dto.title, isDone: dto.isDone, isActive: dto.isActive,
                  createdAt: dto.createdAt, updatedAt: dto.updatedAt, needsSync: false)
     }
 
@@ -73,7 +71,6 @@ extension TaskItem {
         title = dto.title
         isDone = dto.isDone
         isActive = dto.isActive
-        sortIndex = dto.sortIndex
         updatedAt = dto.updatedAt
         deletedAt = dto.deletedAt
         needsSync = false

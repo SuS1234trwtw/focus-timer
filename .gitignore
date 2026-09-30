@@ -9,5 +9,8 @@ xcuserdata/
 # local secrets
 Config/Secrets.xcconfig
 
+# fetched by scripts/fetch-fonts.sh
+FocusTimer/Resources/Fonts/*.ttf
+
 # built .ipa
 dist/

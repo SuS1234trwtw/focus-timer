@@ -22,6 +22,9 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      - name: Fetch fonts
+        run: ./scripts/fetch-fonts.sh
+
       - name: Write Supabase config
         env:
           SUPABASE_HOST: ${{ secrets.SUPABASE_HOST }}
