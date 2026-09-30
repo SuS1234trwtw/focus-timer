@@ -9,11 +9,7 @@ struct RootView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// User order: lowest sortIndex first; new tasks go on top.
-    @Query(
-        filter: #Predicate<TaskItem> { $0.deletedAt == nil },
-        sort: [SortDescriptor(\TaskItem.sortIndex), SortDescriptor(\TaskItem.createdAt, order: .reverse)]
-    )
-    private var tasks: [TaskItem]
+    @Query(TaskItem.ordered) private var tasks: [TaskItem]
 
     @AppStorage("timerFont") private var timerFont: TimerFont = .carved
     @AppStorage("chimeEnabled") private var chimeEnabled = true

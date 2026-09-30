@@ -6,11 +6,7 @@ struct TasksSheet: View {
     @Environment(SyncCoordinator.self) private var sync
     @Environment(\.dismiss) private var dismiss
 
-    @Query(
-        filter: #Predicate<TaskItem> { $0.deletedAt == nil },
-        sort: [SortDescriptor(\TaskItem.sortIndex), SortDescriptor(\TaskItem.createdAt, order: .reverse)]
-    )
-    private var tasks: [TaskItem]
+    @Query(TaskItem.ordered) private var tasks: [TaskItem]
 
     @State private var draft = ""
     @FocusState private var inputFocused: Bool

@@ -45,6 +45,16 @@ final class TaskItem {
     }
 }
 
+extension TaskItem {
+    /// Live tasks in the user's order: lowest sortIndex first, newest first on ties.
+    static var ordered: FetchDescriptor<TaskItem> {
+        FetchDescriptor<TaskItem>(
+            predicate: #Predicate<TaskItem> { task in task.deletedAt == nil },
+            sortBy: [SortDescriptor(\TaskItem.sortIndex), SortDescriptor(\TaskItem.createdAt, order: .reverse)]
+        )
+    }
+}
+
 @Model
 final class FocusSessionRecord {
     @Attribute(.unique) var id: UUID
