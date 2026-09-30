@@ -1,0 +1,90 @@
+name: Island debug
+
+# Runs the app on a Dynamic Island simulator, backgrounds it, and captures the island plus any
+# widget-extension crashes and ActivityKit/WidgetKit logs. Manual only.
+on:
+  workflow_dispatch:
+
+jobs:
+  island:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Select latest Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Fetch fonts
+        run: ./scripts/fetch-fonts.sh
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Pick an iPhone 17 Pro simulator (has a Dynamic Island)
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          runtimes = sorted((k for k in devices if "iOS-26" in k), reverse=True)
+          pick = [d for k in runtimes for d in devices[k] if d["name"] == "iPhone 17 Pro"]
+          pick = pick or [d for k in runtimes for d in devices[k] if "Pro" in d["name"] and d["name"].startswith("iPhone")]
+          print(pick[0]["udid"])
+          ')
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Build for simulator
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project FocusTimer.xcodeproj -scheme FocusTimer -configuration Debug \
+            -destination "id=${{ steps.sim.outputs.udid }}" -derivedDataPath build \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
+            | tee build.log | grep -E "error:|\*\* BUILD" || true
+          grep -q "\*\* BUILD SUCCEEDED \*\*" build.log
+
+      - name: Run, background the app, capture the island
+        run: |
+          UDID=${{ steps.sim.outputs.udid }}
+          APP=build/Build/Products/Debug-iphonesimulator/FocusTimer.app
+          mkdir -p out
+          xcrun simctl boot "$UDID" 2>/dev/null || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$APP"
+          # Stream logs from everything involved in drawing Live Activities.
+          xcrun simctl spawn "$UDID" log stream --level debug --style compact \
+            --predicate 'process CONTAINS "FocusWidgets" OR process == "FocusTimer" OR subsystem CONTAINS "ActivityKit" OR subsystem CONTAINS "chrono" OR process == "chronod" OR process == "liveactivitiesd" OR (process == "SpringBoard" AND eventMessage CONTAINS[c] "activity")' \
+            > out/island.log 2>&1 &
+          LOGPID=$!
+          sleep 3
+          xcrun simctl launch "$UDID" com.focustimer.app -autostart
+          sleep 8
+          xcrun simctl io "$UDID" screenshot out/1-in-app.png
+          # Background the app by opening Settings; the island should now show FOCUS + timer.
+          xcrun simctl launch "$UDID" com.apple.Preferences
+          sleep 6
+          xcrun simctl io "$UDID" screenshot out/2-island.png
+          sleep 20
+          xcrun simctl io "$UDID" screenshot out/3-island-later.png
+          kill $LOGPID || true
+          # Crash reports from the widget extension, if any.
+          find ~/Library/Logs/DiagnosticReports -name "*FocusWidgets*" -newer build.log -exec cp {} out/ \; 2>/dev/null || true
+          ls -la out
+          echo "---- extension / activity log (filtered) ----"
+          grep -iE "FocusWidgets|activity|widget|error|crash|fault|exception" out/island.log | tail -150 || true
+
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: island-debug
+          path: |
+            out
+            build.log
+          if-no-files-found: ignore
