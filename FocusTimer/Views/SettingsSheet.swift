@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 
 /// `config`: timer lengths, terminal style, and colours from the colour wheel.

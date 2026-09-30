@@ -1,6 +1,7 @@
 import AuthenticationServices
 import Foundation
 import Observation
+import SwiftUI
 
 /// The song playing on the user's Spotify account.
 struct NowPlaying: Equatable, Sendable {
