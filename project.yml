@@ -57,6 +57,9 @@ targets:
     platform: iOS
     sources:
       - path: FocusTimerTests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: FocusTimer
 
