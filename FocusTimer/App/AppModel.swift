@@ -13,7 +13,7 @@ final class AppModel {
     let sync: SyncCoordinator
     let spotify = SpotifyService()
 
-    private let live = LiveActivityController()
+    let live = LiveActivityController()
 
     /// Kept current by `RootView` so actions triggered outside the UI know what to show.
     var currentTask: (id: UUID, title: String)?
@@ -121,6 +121,16 @@ final class AppModel {
         }
         sync.record(segment, taskID: segment.mode == .focus ? currentTask?.id : nil)
         refreshLiveActivity()
+    }
+
+    /// Settings → island → restart: ends any island and creates a fresh one.
+    func restartLiveActivity() {
+        live.restart(
+            engine: engine,
+            look: liveLook,
+            taskTitle: currentTask?.title,
+            trackLine: showTrackInIsland ? spotify.track?.line : nil
+        )
     }
 
     /// Pushes the current timer state to the Live Activity, the Dynamic Island and the widgets.

@@ -1,5 +1,7 @@
 import ActivityKit
 import Foundation
+import Observation
+import OSLog
 import WidgetKit
 
 /// The colours and prompt the Live Activity and widgets draw with, taken from the current palette.
@@ -24,17 +26,46 @@ struct LiveLook: Equatable {
 /// app being backgrounded or force-quit, and its buttons relaunch the app in the background. So we create
 /// it whenever the app is open, never end it when the timer stops, and renew it before iOS's 8-hour limit.
 @MainActor
+@Observable
 final class LiveActivityController {
-    private var activity: Activity<FocusActivityAttributes>?
-    private var lastState: FocusActivityAttributes.ContentState?
-    private var lastSnapshot: TimerSnapshot?
+    /// Why the last attempt to create the island failed, straight from iOS; nil after a success.
+    private(set) var lastError: String?
+    /// When the island was last created successfully.
+    private(set) var lastCreated: Date?
 
-    private let startedAtKey = "liveActivity.startedAt"
+    @ObservationIgnored private var activity: Activity<FocusActivityAttributes>?
+    @ObservationIgnored private var lastState: FocusActivityAttributes.ContentState?
+    @ObservationIgnored private var lastSnapshot: TimerSnapshot?
+    @ObservationIgnored private let log = Logger(subsystem: "com.focustimer.app", category: "LiveActivity")
+
+    @ObservationIgnored private let startedAtKey = "liveActivity.startedAt"
     /// Renew well before iOS ends activities (8 hours), whenever the app is on screen.
-    private let renewAfter: TimeInterval = 6 * 60 * 60
+    @ObservationIgnored private let renewAfter: TimeInterval = 6 * 60 * 60
+
+    // MARK: Diagnostics (Settings → island)
+
+    /// Whether iOS lets this app show Live Activities (Settings → Focus → Live Activities).
+    var areActivitiesEnabled: Bool { ActivityAuthorizationInfo().areActivitiesEnabled }
+
+    /// Every activity iOS knows for this app, with its state, e.g. ["active"].
+    var activityStates: [String] {
+        Activity<FocusActivityAttributes>.activities.map { String(describing: $0.activityState) }
+    }
+
+    /// Ends whatever exists and creates a fresh island now (the app must be on screen).
+    func restart(engine: PomodoroEngine, look: LiveLook, taskTitle: String?, trackLine: String?) {
+        UserDefaults.standard.removeObject(forKey: startedAtKey)
+        for existing in Activity<FocusActivityAttributes>.activities {
+            let id = existing.id
+            Task { await Self.end(activityID: id) }
+        }
+        activity = nil
+        lastState = nil
+        update(engine: engine, look: look, taskTitle: taskTitle, trackLine: trackLine, appIsActive: true, forceNew: true)
+    }
 
     /// - Parameter appIsActive: the app is on screen, so a new activity may be created if needed.
-    func update(engine: PomodoroEngine, look: LiveLook, taskTitle: String?, trackLine: String?, appIsActive: Bool) {
+    func update(engine: PomodoroEngine, look: LiveLook, taskTitle: String?, trackLine: String?, appIsActive: Bool, forceNew: Bool = false) {
         let hasStarted = engine.isRunning || engine.segmentStartedAt != nil
 
         let state = FocusActivityAttributes.ContentState(
@@ -58,7 +89,7 @@ final class LiveActivityController {
             textHex: look.textHex, dimHex: look.dimHex, trackLine: trackLine
         ))
 
-        let current = liveActivity()
+        let current = forceNew ? nil : liveActivity()
         let needsNew = current == nil || current?.attributes.prompt != look.prompt || (appIsActive && isOld)
 
         if needsNew {
@@ -77,8 +108,9 @@ final class LiveActivityController {
 
     /// The activity we own, dropping duplicates or ones the user dismissed.
     private func liveActivity() -> Activity<FocusActivityAttributes>? {
+        // Anything not finished counts, including one iOS is still bringing up.
         let alive = Activity<FocusActivityAttributes>.activities.filter {
-            $0.activityState == .active || $0.activityState == .stale
+            $0.activityState != .ended && $0.activityState != .dismissed
         }
         let keep = alive.first { $0.id == activity?.id } ?? alive.first
         for extra in alive where extra.id != keep?.id {
@@ -99,12 +131,23 @@ final class LiveActivityController {
             Task { await Self.end(activityID: id) }
         }
         activity = nil
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        guard areActivitiesEnabled else {
+            lastError = "Live Activities are turned off for Focus in iOS Settings"
+            log.error("Live Activities disabled for this app")
+            return
+        }
         let content = ActivityContent(state: state, staleDate: nil)
-        if let created = try? Activity.request(attributes: FocusActivityAttributes(prompt: prompt), content: content, pushType: nil) {
-            activity = created
+        do {
+            activity = try Activity.request(attributes: FocusActivityAttributes(prompt: prompt), content: content, pushType: nil)
             lastState = state
+            lastError = nil
+            lastCreated = .now
             UserDefaults.standard.set(Date.now, forKey: startedAtKey)
+            log.info("Live Activity created")
+        } catch {
+            // Keep the real reason: it's the only way to tell a settings problem from a signing one.
+            lastError = "\(String(describing: error)) — \(error.localizedDescription)"
+            log.error("Live Activity request failed: \(String(describing: error), privacy: .public)")
         }
     }
 

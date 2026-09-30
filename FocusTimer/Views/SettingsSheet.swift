@@ -40,6 +40,7 @@ struct SettingsSheet: View {
                 colorSection
                 feedbackSection
                 musicSection
+                islandSection
                 aboutSection
             }
             .font(palette.mono(15, relativeTo: .body))
@@ -321,6 +322,44 @@ struct SettingsSheet: View {
             header("music")
         } footer: {
             Text("Log in to Spotify to show the song under the timer and in the Dynamic Island. Play/pause/skip need Spotify Premium. The song updates while the app is open.")
+                .font(palette.mono(11, relativeTo: .caption))
+                .foregroundStyle(palette.dim)
+        }
+        .listRowBackground(palette.surface)
+    }
+
+    // MARK: Island
+
+    private var hasWidgetExtension: Bool {
+        guard let plugins = Bundle.main.builtInPlugInsURL else { return false }
+        return FileManager.default.fileExists(atPath: plugins.appending(path: "FocusWidgets.appex").path(percentEncoded: false))
+    }
+
+    private var islandSection: some View {
+        let live = AppModel.shared.live
+        return Section {
+            LabeledContent("live activities", value: live.areActivitiesEnabled ? "allowed" : "turned off")
+            // The island is drawn by the widget extension; sideloading can strip it out of the app.
+            LabeledContent("island extension", value: hasWidgetExtension ? "installed" : "missing")
+            LabeledContent("islands", value: live.activityStates.isEmpty ? "none" : live.activityStates.joined(separator: ", "))
+            if let created = live.lastCreated {
+                LabeledContent("created", value: created.formatted(date: .omitted, time: .shortened))
+            }
+            if let error = live.lastError {
+                Text(error)
+                    .font(palette.mono(11, relativeTo: .caption))
+                    .foregroundStyle(Color(hex: 0xE0786A))
+                    .textSelection(.enabled)
+            }
+            Button("restart island", systemImage: "arrow.clockwise") {
+                Feedback.play(.tap)
+                AppModel.shared.restartLiveActivity()
+            }
+            .foregroundStyle(palette.accent)
+        } header: {
+            header("island")
+        } footer: {
+            Text("If the Dynamic Island doesn't appear, check this: \"turned off\" means iOS Settings → Focus → Live Activities; any red text is the exact reason iOS gave.")
                 .font(palette.mono(11, relativeTo: .caption))
                 .foregroundStyle(palette.dim)
         }
