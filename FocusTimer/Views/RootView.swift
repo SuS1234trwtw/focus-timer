@@ -53,6 +53,12 @@ struct RootView: View {
         .sensoryFeedback(.success, trigger: chimeCount)
         .task { await runClock() }
         .task { await sync.syncNow() }
+        #if DEBUG
+        .task {
+            // `-autostart` starts the timer on launch (used for CI screenshots).
+            if ProcessInfo.processInfo.arguments.contains("-autostart") { engine.start() }
+        }
+        #endif
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             if let segment = engine.tick() { finish(segment) }
