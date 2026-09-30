@@ -55,6 +55,25 @@ jobs:
           test -d "$APP/PlugIns/FocusWidgets.appex"
           /usr/libexec/PlistBuddy -c "Print :NSSupportsLiveActivities" "$APP/Info.plist"
 
+      # Unsigned extensions come out of Sideloadly with no provisioning profile, so iOS never runs
+      # them (empty Dynamic Island, no widget in the gallery). Ad-hoc sign the extension, then the
+      # app, so both carry a code signature and entitlements for the re-signer to replace.
+      - name: Ad-hoc sign (extension first)
+        run: |
+          APP=build/Build/Products/Release-iphoneos/FocusTimer.app
+          cat > adhoc.entitlements <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>application-identifier</key><string>ADHOC.com.focustimer.app</string>
+          </dict></plist>
+          EOF
+          sed 's/com.focustimer.app</com.focustimer.app.widgets</' adhoc.entitlements > widgets.entitlements
+          codesign -f -s - --entitlements widgets.entitlements "$APP/PlugIns/FocusWidgets.appex"
+          codesign -f -s - --entitlements adhoc.entitlements "$APP"
+          codesign -dv "$APP/PlugIns/FocusWidgets.appex"
+          codesign -d --entitlements - "$APP/PlugIns/FocusWidgets.appex"
+
       - name: Package .ipa
         run: |
           APP=build/Build/Products/Release-iphoneos/FocusTimer.app
