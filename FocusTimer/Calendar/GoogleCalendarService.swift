@@ -263,11 +263,37 @@ final class GoogleCalendarService {
         guard let body = try? GoogleCalendarAPI.calendarBody(),
               let (data, status) = await send("POST", "/calendars", body: body) else { return nil }
         guard (200..<300).contains(status), let created = try? JSONDecoder().decode(CalendarResponse.self, from: data) else {
-            message = "couldn't create the Focus calendar (\(status))"
+            message = Self.explain(status: status, body: data, action: "create the Focus calendar")
             return nil
         }
         calendarID = created.id
         return created.id
+    }
+
+    private struct GoogleError: Decodable {
+        struct Body: Decodable {
+            struct Item: Decodable { let reason: String? }
+            let message: String?
+            let errors: [Item]?
+        }
+        let error: Body
+    }
+
+    /// A readable reason for a failed Google call; 403s are usually setup, not a bug.
+    nonisolated static func explain(status: Int, body: Data, action: String) -> String {
+        let error = (try? JSONDecoder().decode(GoogleError.self, from: body))?.error
+        let reasons = error?.errors?.compactMap(\.reason) ?? []
+        let text = error?.message?.lowercased() ?? ""
+        if reasons.contains("accessNotConfigured") || text.contains("has not been used") || text.contains("is disabled") {
+            return "couldn't \(action): the Google Calendar API is turned off for this app"
+        }
+        if reasons.contains("insufficientPermissions") || text.contains("insufficient") {
+            return "couldn't \(action): calendar permission wasn't allowed — unlink, connect again and tick the calendar box"
+        }
+        if let message = error?.message, !message.isEmpty {
+            return "couldn't \(action) (\(status)): \(message.prefix(120))"
+        }
+        return "couldn't \(action) (\(status))"
     }
 
     // MARK: Transport

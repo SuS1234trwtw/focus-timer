@@ -92,3 +92,19 @@ struct GoogleCalendarEventTests {
         #expect(GoogleCalendarAPI.calendarPath("a/b") == "/calendars/a%2Fb")
     }
 }
+
+struct GoogleErrorExplainTests {
+    @Test func disabledAPIIsExplained() {
+        let body = Data(#"{"error":{"code":403,"message":"Google Calendar API has not been used in project 930489858135 before or it is disabled.","errors":[{"reason":"accessNotConfigured"}]}}"#.utf8)
+        #expect(GoogleCalendarService.explain(status: 403, body: body, action: "x").contains("API is turned off"))
+    }
+
+    @Test func missingScopeIsExplained() {
+        let body = Data(#"{"error":{"code":403,"message":"Request had insufficient authentication scopes.","errors":[{"reason":"insufficientPermissions"}]}}"#.utf8)
+        #expect(GoogleCalendarService.explain(status: 403, body: body, action: "x").contains("permission"))
+    }
+
+    @Test func unknownBodyFallsBackToStatus() {
+        #expect(GoogleCalendarService.explain(status: 500, body: Data(), action: "x") == "couldn't x (500)")
+    }
+}
