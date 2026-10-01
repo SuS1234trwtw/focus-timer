@@ -93,8 +93,25 @@ final class SpotifyService {
         let item: Item?
     }
 
+    /// Shown when Spotify refuses an account that isn't on the app's dev-mode list (max 5 people).
+    static let inviteOnlyMessage = "Spotify is invite-only for now — ask the developer to add your account"
+
+    /// Spotify answers 403 with this hint for accounts missing from the Developer Dashboard's user list.
+    nonisolated static func isNotRegistered(status: Int, body: Data) -> Bool {
+        guard status == 403 else { return false }
+        let text = String(decoding: body, as: UTF8.self).lowercased()
+        return text.contains("not be registered") || text.contains("developer.spotify.com")
+    }
+
+    /// Unlinks and explains, instead of polling an account Spotify will never let in.
+    private func handleNotRegistered() {
+        disconnect()
+        message = Self.inviteOnlyMessage
+    }
+
     func refresh() async {
         guard let (data, status) = await send("GET", "/me/player/currently-playing") else { return }
+        if Self.isNotRegistered(status: status, body: data) { return handleNotRegistered() }
         guard status == 200, let playing = try? JSONDecoder().decode(CurrentlyPlaying.self, from: data), let item = playing.item else {
             track = nil  // 204: nothing playing
             return
@@ -120,7 +137,8 @@ final class SpotifyService {
     func previous() async { await control("POST", "/me/player/previous") }
 
     private func control(_ method: String, _ path: String) async {
-        guard let (_, status) = await send(method, path) else { return }
+        guard let (data, status) = await send(method, path) else { return }
+        if Self.isNotRegistered(status: status, body: data) { return handleNotRegistered() }
         switch status {
         case 200..<300: message = nil
         case 403: message = "Spotify Premium is needed for controls"

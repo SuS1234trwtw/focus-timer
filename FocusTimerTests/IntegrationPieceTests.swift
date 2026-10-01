@@ -81,3 +81,16 @@ struct TimerSnapshotTests {
         #expect(TimerSnapshot.load(from: defaults) == snapshot)
     }
 }
+
+struct SpotifyInviteOnlyTests {
+    @Test func unregisteredAccountIsDetected() {
+        let body = Data("Check settings on developer.spotify.com/dashboard, the user may not be registered.".utf8)
+        #expect(SpotifyService.isNotRegistered(status: 403, body: body))
+    }
+
+    @Test func premiumRefusalIsNotMistakenForInviteOnly() {
+        let body = Data(#"{"error":{"status":403,"message":"Player command failed: Premium required"}}"#.utf8)
+        #expect(!SpotifyService.isNotRegistered(status: 403, body: body))
+        #expect(!SpotifyService.isNotRegistered(status: 200, body: Data("may not be registered".utf8)))
+    }
+}
