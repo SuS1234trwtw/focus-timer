@@ -40,6 +40,8 @@ struct SettingsSheet: View {
                 colorSection
                 feedbackSection
                 musicSection
+                CalendarSettingsSection(palette: palette)
+                IslandSettingsSection(palette: palette)
                 islandSection
                 aboutSection
             }
@@ -220,6 +222,7 @@ struct SettingsSheet: View {
         Section {
             Toggle("sounds", isOn: $soundsEnabled)
             Toggle("haptics", isOn: $hapticsEnabled)
+            HapticStrengthPicker(palette: palette)
             Toggle("tick sound", isOn: $tickSound)
                 .disabled(!soundsEnabled)
             Toggle("tick haptics", isOn: $tickHaptics)
@@ -227,7 +230,7 @@ struct SettingsSheet: View {
         } header: {
             header("feedback")
         } footer: {
-            Text("Clicks and beeps for start, pause, reset, tasks and settings, plus a tick every second while running. Sounds follow the silent switch; the end-of-block chime doesn't.")
+            Text("Clicks and beeps for start, pause, reset, tasks and settings, plus a tick every second while running. Haptic strength sets how hard the buzzes hit. Sounds follow the silent switch; the end-of-block chime doesn't.")
                 .font(palette.mono(11, relativeTo: .caption))
                 .foregroundStyle(palette.dim)
         }

@@ -30,8 +30,14 @@ jobs:
           SUPABASE_HOST: ${{ secrets.SUPABASE_HOST }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
         run: |
           printf 'SUPABASE_HOST = %s\nSUPABASE_ANON_KEY = %s\nSPOTIFY_CLIENT_ID = %s\n' "$SUPABASE_HOST" "$SUPABASE_ANON_KEY" "$SPOTIFY_CLIENT_ID" > Config/Secrets.xcconfig
+          # Google redirects to the reversed client ID. Without the secret, Base.xcconfig's placeholder scheme stays.
+          if [ -n "$GOOGLE_CLIENT_ID" ]; then
+            GOOGLE_REVERSED_CLIENT_ID="com.googleusercontent.apps.${GOOGLE_CLIENT_ID%.apps.googleusercontent.com}"
+            printf 'GOOGLE_CLIENT_ID = %s\nGOOGLE_REVERSED_CLIENT_ID = %s\n' "$GOOGLE_CLIENT_ID" "$GOOGLE_REVERSED_CLIENT_ID" >> Config/Secrets.xcconfig
+          fi
 
       - name: Generate Xcode project
         run: xcodegen generate

@@ -24,8 +24,41 @@ struct FocusActivityAttributes: ActivityAttributes {
         var started: Bool?
         var hasStarted: Bool { started ?? false }
 
+        // Island button settings, copied from `IslandSettings` by the app (the extension can't read
+        // the app's defaults). All optional so older states still decode; nil means "on".
+
+        /// Master switch for the buttons.
+        var controls: Bool?
+        /// The pause button.
+        var showToggle: Bool?
+        /// The focus ↔ break button.
+        var showSwitch: Bool?
+        /// Buttons on the lock-screen banner too.
+        var lockControls: Bool?
+        /// False once the app has been terminated (e.g. swiped away), so its buttons are hidden.
+        var appAlive: Bool?
+
+        var showsToggle: Bool { showToggle ?? true }
+        var showsSwitch: Bool { showSwitch ?? true }
+
         var isRunning: Bool { endDate != nil }
         var modeLabel: String { mode == "focus" ? "FOCUS" : "BREAK" }
+
+        /// Whether the island / lock screen shows its buttons right now: only while the timer is
+        /// actually ticking, the app is still alive, and the user hasn't turned them all off.
+        /// - Parameters:
+        ///   - isStale: the activity is past its stale date (we set it to `endDate`, so this is how a
+        ///     view that can't re-evaluate the clock by itself learns the block has run out).
+        ///   - lockScreen: asking for the lock-screen banner rather than the Dynamic Island.
+        func showsControls(now: Date, isStale: Bool, lockScreen: Bool) -> Bool {
+            guard controls ?? true,
+                  let endDate, endDate > now,
+                  appAlive ?? true,
+                  !isStale
+            else { return false }
+            if lockScreen, !(lockControls ?? true) { return false }
+            return showsToggle || showsSwitch
+        }
     }
 
     /// The terminal prompt of the chosen style, e.g. "PS C:\\focus>".

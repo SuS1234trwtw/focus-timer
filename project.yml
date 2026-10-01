@@ -34,8 +34,8 @@ targets:
       path: FocusTimer/Info.plist
       properties:
         CFBundleDisplayName: Focus
-        CFBundleShortVersionString: "1.6.0"
-        CFBundleVersion: "14"
+        CFBundleShortVersionString: "1.7.0"
+        CFBundleVersion: "15"
         ITSAppUsesNonExemptEncryption: false
         UILaunchScreen:
           UIColorName: LaunchBackground
@@ -48,9 +48,13 @@ targets:
           - CFBundleURLName: com.focustimer.app
             CFBundleURLSchemes:
               - focustimer
+          - CFBundleURLName: com.focustimer.app.google
+            CFBundleURLSchemes:
+              - $(GOOGLE_REVERSED_CLIENT_ID)
         SUPABASE_HOST: $(SUPABASE_HOST)
         SUPABASE_ANON_KEY: $(SUPABASE_ANON_KEY)
         SPOTIFY_CLIENT_ID: $(SPOTIFY_CLIENT_ID)
+        GOOGLE_CLIENT_ID: $(GOOGLE_CLIENT_ID)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.focustimer.app
@@ -68,8 +72,8 @@ targets:
       path: FocusWidgets/Info.plist
       properties:
         CFBundleDisplayName: Focus
-        CFBundleShortVersionString: "1.6.0"
-        CFBundleVersion: "14"
+        CFBundleShortVersionString: "1.7.0"
+        CFBundleVersion: "15"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:

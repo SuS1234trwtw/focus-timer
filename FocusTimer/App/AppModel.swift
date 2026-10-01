@@ -128,6 +128,9 @@ final class AppModel {
             Feedback.play(.complete)
         }
         sync.record(segment, taskID: segment.mode == .focus ? currentTask?.id : nil)
+        GoogleCalendarService.shared.log(
+            mode: segment.mode.rawValue, start: segment.startedAt, end: segment.endedAt,
+            taskTitle: segment.mode == .focus ? currentTask?.title : nil)
         refreshLiveActivity()
     }
 
@@ -141,7 +144,23 @@ final class AppModel {
         )
     }
 
+    // MARK: App lifecycle (see `AppLifecycle`)
+
+    /// The app is about to be killed (e.g. swiped away): keep the island but hide its buttons.
+    /// Blocks briefly so the update reaches iOS before the process ends.
+    func appWillTerminate() {
+        live.markTerminated()
+    }
+
+    /// Back on screen: the island's buttons may show again.
+    func appDidBecomeActive() {
+        live.appAlive = true
+        refreshLiveActivity()
+        Task { await GoogleCalendarService.shared.flushPending() }
+    }
+
     /// Pushes the current timer state to the Live Activity, the Dynamic Island and the widgets.
+    /// Also call this after changing an `IslandSettings` value.
     func refreshLiveActivity() {
         live.update(
             engine: engine,

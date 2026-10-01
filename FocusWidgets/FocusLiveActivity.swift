@@ -7,7 +7,7 @@ import WidgetKit
 struct FocusLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: FocusActivityAttributes.self) { context in
-            LockScreenBanner(state: context.state, prompt: context.attributes.prompt)
+            LockScreenBanner(state: context.state, prompt: context.attributes.prompt, isStale: context.isStale)
                 .activityBackgroundTint(Color(hexString: context.state.backgroundHex))
                 .activitySystemActionForegroundColor(Color(hexString: context.state.accentHex) ?? .orange)
         } dynamicIsland: { context in
@@ -15,6 +15,7 @@ struct FocusLiveActivity: Widget {
             let accent = Color(hexString: state.accentHex) ?? .orange
             let text = Color(hexString: state.textHex) ?? .white
             let dim = Color(hexString: state.dimHex) ?? .gray
+            let isStale = context.isStale
 
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -44,7 +45,7 @@ struct FocusLiveActivity: Widget {
                                 .lineLimit(1)
                         }
                         ProgressBar(state: state, accent: accent, track: dim.opacity(0.35))
-                        Controls(state: state, accent: accent)
+                        Controls(state: state, accent: accent, isStale: isStale, lockScreen: false)
                     }
                 }
             } compactLeading: {
@@ -72,6 +73,7 @@ struct FocusLiveActivity: Widget {
 private struct LockScreenBanner: View {
     let state: FocusActivityAttributes.ContentState
     let prompt: String
+    let isStale: Bool
 
     var body: some View {
         let accent = Color(hexString: state.accentHex) ?? .orange
@@ -102,7 +104,7 @@ private struct LockScreenBanner: View {
                     .lineLimit(1)
             }
             ProgressBar(state: state, accent: accent, track: dim.opacity(0.35))
-            Controls(state: state, accent: accent)
+            Controls(state: state, accent: accent, isStale: isStale, lockScreen: true)
         }
         .padding(16)
     }
@@ -179,34 +181,38 @@ private struct ProgressRing: View {
     }
 }
 
-/// Pause / resume and skip, handled by the app via Live Activity intents.
+/// Pause and focus ↔ break, handled by the app via Live Activity intents. Shown only while the timer
+/// is ticking and the app is alive (see `ContentState.showsControls`), and only the buttons the user
+/// enabled; a paused, finished or orphaned island shows no buttons at all.
 private struct Controls: View {
     let state: FocusActivityAttributes.ContentState
     let accent: Color
+    /// Past the stale date, which the app sets to `endDate`: the block has run out.
+    let isStale: Bool
+    let lockScreen: Bool
 
     var body: some View {
-        HStack(spacing: 10) {
-            // Pause while running; otherwise start (fresh block) or resume (paused block).
-            Button(intent: ToggleTimerIntent()) {
-                Label(toggleTitle, systemImage: state.isRunning ? "pause.fill" : "play.fill")
-                    .frame(maxWidth: .infinity)
+        if state.showsControls(now: .now, isStale: isStale, lockScreen: lockScreen) {
+            HStack(spacing: 10) {
+                // Only shown while running, so it's always "pause".
+                if state.showsToggle {
+                    Button(intent: ToggleTimerIntent()) {
+                        Label("pause", systemImage: "pause.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                // Focus ↔ break, and the new block starts straight away.
+                if state.showsSwitch {
+                    Button(intent: SwitchModeIntent()) {
+                        Label(state.mode == "focus" ? "break" : "focus",
+                              systemImage: state.mode == "focus" ? "cup.and.saucer.fill" : "brain.head.profile")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
             }
-            // Focus ↔ break, and the new block starts straight away.
-            Button(intent: SwitchModeIntent()) {
-                Label(state.mode == "focus" ? "break" : "focus",
-                      systemImage: state.mode == "focus" ? "cup.and.saucer.fill" : "brain.head.profile")
-                    .frame(maxWidth: .infinity)
-            }
+            .font(.system(.caption, design: .monospaced).weight(.bold))
+            .buttonStyle(.bordered)
+            .tint(accent)
         }
-        .font(.system(.caption, design: .monospaced).weight(.bold))
-        .buttonStyle(.bordered)
-        .tint(accent)
-    }
-
-    private var toggleTitle: String {
-        // The block ran out while the app was suspended: the next tap starts the next block.
-        if let end = state.endDate, end <= .now { return "start" }
-        if state.isRunning { return "pause" }
-        return state.hasStarted ? "resume" : "start"
     }
 }

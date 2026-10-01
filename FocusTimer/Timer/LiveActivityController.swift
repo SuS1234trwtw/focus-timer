@@ -43,6 +43,10 @@ final class LiveActivityController {
     /// When the island was last created successfully.
     private(set) var lastCreated: Date?
 
+    /// False once the app is terminating, so the island hides its buttons (they'd act on a dead app).
+    /// Set back to true when the app becomes active again.
+    @ObservationIgnored var appAlive = true
+
     @ObservationIgnored private var activity: Activity<FocusActivityAttributes>?
     @ObservationIgnored private var lastState: FocusActivityAttributes.ContentState?
     @ObservationIgnored private var lastSnapshot: TimerSnapshot?
@@ -86,7 +90,12 @@ final class LiveActivityController {
             textHex: look.textHex,
             dimHex: look.dimHex,
             trackLine: trackLine,
-            started: hasStarted
+            started: hasStarted,
+            controls: IslandSettings.buttons(),
+            showToggle: IslandSettings.pauseButton(),
+            showSwitch: IslandSettings.switchButton(),
+            lockControls: IslandSettings.lockScreenButtons(),
+            appAlive: appAlive
         )
 
         saveSnapshot(TimerSnapshot(
@@ -140,7 +149,7 @@ final class LiveActivityController {
             log.error("Live Activities disabled for this app")
             return
         }
-        let content = ActivityContent(state: state, staleDate: nil)
+        let content = ActivityContent(state: state, staleDate: Self.staleDate(for: state))
         do {
             let created = try Activity.request(attributes: FocusActivityAttributes(prompt: prompt), content: content, pushType: nil)
             for other in Activity<FocusActivityAttributes>.activities where other.id != created.id {
@@ -165,8 +174,47 @@ final class LiveActivityController {
     private func push(_ state: FocusActivityAttributes.ContentState, to current: Activity<FocusActivityAttributes>) {
         lastState = state
         let id = current.id
-        let content = ActivityContent(state: state, staleDate: nil)
+        let content = ActivityContent(state: state, staleDate: Self.staleDate(for: state))
         Task { await Self.update(activityID: id, with: content) }
+    }
+
+    /// While running, the activity goes stale when the block ends: the island can't re-check the clock
+    /// by itself, and `isStale` is how it learns to hide the buttons. Never stale while stopped.
+    private nonisolated static func staleDate(for state: FocusActivityAttributes.ContentState) -> Date? {
+        state.endDate
+    }
+
+    // MARK: Termination
+
+    /// The app is being terminated (e.g. swiped away): hide the island's buttons while the island
+    /// itself stays. Blocks the caller for at most `timeout` so the update goes out before the process dies.
+    func markTerminated(timeout: TimeInterval = 2) {
+        appAlive = false
+        var last = lastState
+        last?.appAlive = false
+        lastState = last
+        Self.pushTerminated(lastState: last, timeout: timeout)
+    }
+
+    /// Pushes `appAlive = false` to every live activity and waits (up to `timeout`) for it to land.
+    ///
+    /// Safe to call on the main thread: the work runs on a detached task that never touches the main
+    /// actor, so waiting for it here can't deadlock, and the timeout bounds the wait regardless.
+    /// - Parameter lastState: the state we last pushed; when nil, each activity's own current state is used.
+    nonisolated static func pushTerminated(lastState: FocusActivityAttributes.ContentState?, timeout: TimeInterval = 2) {
+        let done = DispatchSemaphore(value: 0)
+        Task.detached(priority: .userInitiated) {
+            let alive = Activity<FocusActivityAttributes>.activities.filter {
+                $0.activityState != .ended && $0.activityState != .dismissed
+            }
+            for activity in alive {
+                var state = lastState ?? activity.content.state
+                state.appAlive = false
+                await activity.update(ActivityContent(state: state, staleDate: LiveActivityController.staleDate(for: state)))
+            }
+            done.signal()
+        }
+        _ = done.wait(timeout: .now() + timeout)
     }
 
     // `Activity` isn't Sendable, so the async calls look it up by id where they run

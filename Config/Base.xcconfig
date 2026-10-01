@@ -5,5 +5,9 @@ SUPABASE_HOST =
 SUPABASE_ANON_KEY =
 // Spotify app Client ID (public; PKCE, no secret). Empty = Spotify linking hidden.
 SPOTIFY_CLIENT_ID =
+// Google iOS OAuth client ID (public; PKCE, no secret). Empty = Google Calendar linking hidden.
+// The reversed ID is the URL scheme Google redirects to; the placeholder keeps the URL type valid when unset.
+GOOGLE_CLIENT_ID =
+GOOGLE_REVERSED_CLIENT_ID = com.googleusercontent.apps.unset
 
 #include? "Secrets.xcconfig"

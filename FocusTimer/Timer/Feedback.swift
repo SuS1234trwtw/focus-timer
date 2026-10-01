@@ -1,5 +1,5 @@
 import AVFoundation
-import UIKit
+import Foundation
 
 /// Everything in the app that can click, beep, or buzz. Raw values match the files in Resources/Sounds.
 enum FeedbackEvent: String, CaseIterable {
@@ -24,28 +24,22 @@ enum Feedback {
         static let haptics = "hapticsEnabled"
         static let tickSound = "tickSound"
         static let tickHaptics = "tickHaptics"
+        /// A `HapticStrength` raw value: "soft", "strong" (default) or "max".
+        static let hapticStrength = "hapticStrength"
     }
 
     private static var players: [FeedbackEvent: AVAudioPlayer] = [:]
-    private static let impactLight = UIImpactFeedbackGenerator(style: .light)
-    private static let impactMedium = UIImpactFeedbackGenerator(style: .medium)
-    private static let impactRigid = UIImpactFeedbackGenerator(style: .rigid)
-    private static let impactSoft = UIImpactFeedbackGenerator(style: .soft)
-    private static let selection = UISelectionFeedbackGenerator()
-    private static let notification = UINotificationFeedbackGenerator()
 
     /// Loads every sound up front so the first tap isn't late.
     static func prepare() {
         for event in FeedbackEvent.allCases {
             guard let url = Bundle.main.url(forResource: event.rawValue, withExtension: "wav"),
                   let player = try? AVAudioPlayer(contentsOf: url) else { continue }
-            player.volume = event.isTick ? 0.35 : 0.6
+            player.volume = event.isTick ? 0.35 : 0.9
             player.prepareToPlay()
             players[event] = player
         }
-        [impactLight, impactMedium, impactRigid, impactSoft].forEach { $0.prepare() }
-        selection.prepare()
-        notification.prepare()
+        HapticEngine.prepare()
     }
 
     static func play(_ event: FeedbackEvent) {
@@ -64,21 +58,7 @@ enum Feedback {
     }
 
     private static func haptic(for event: FeedbackEvent) {
-        switch event {
-        case .tick: impactLight.impactOccurred(intensity: 0.45)
-        case .minute: impactMedium.impactOccurred(intensity: 0.9)
-        case .start: impactMedium.impactOccurred()
-        case .pause: impactSoft.impactOccurred()
-        case .reset: impactRigid.impactOccurred()
-        case .switch: selection.selectionChanged()
-        case .tap: selection.selectionChanged()
-        case .taskAdd: impactLight.impactOccurred()
-        case .taskDone: notification.notificationOccurred(.success)
-        case .taskUndo: impactSoft.impactOccurred(intensity: 0.6)
-        case .taskDelete: impactRigid.impactOccurred(intensity: 0.8)
-        case .taskFocus: selection.selectionChanged()
-        case .complete: notification.notificationOccurred(.success)
-        }
+        HapticEngine.play(event, strength: HapticStrength.stored())
     }
 
     /// UI sounds respect the ring/silent switch and mix with music. (The end-of-block chime
