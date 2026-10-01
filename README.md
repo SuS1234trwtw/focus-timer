@@ -56,6 +56,14 @@ To test full cycles quickly, add `-fastTimer` under *Scheme → Run → Argument
 
 Installing on a real device needs code signing: either Xcode on a Mac with your Apple ID (free accounts work for your own phone, re-sign every 7 days), or an Apple Developer Program membership for TestFlight via Xcode Cloud or a signed CI job.
 
+## Install
+
+Download the latest IPA from [Releases](https://github.com/SuS1234trwtw/focus-timer/releases/latest) and follow the [step-by-step install guide](https://sus1234trwtw.github.io/install.html) (iloader or SideStore, Windows or Mac). SideStore source for one-tap updates:
+
+```
+https://github.com/SuS1234trwtw/focus-timer/releases/latest/download/source.json
+```
+
 ## License
 
 Focus is open source under the [MIT License](LICENSE). Bundled fonts are downloaded at build time and stay under their own licenses (SIL Open Font License, Ubuntu Font Licence, Apache 2.0).

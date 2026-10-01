@@ -116,7 +116,7 @@ jobs:
           export BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Info.plist")
           export TAG="v$VERSION-$BUILD"
           export SIZE=$(stat -f%z "$IPA")
-          export NOTES="$(git log -1 --pretty=%B | grep -v '^Co-Authored-By:')"
+          export NOTES="$(git log -1 --pretty=%B | grep -v '^Co-Authored-By:' | sed 's/ *\[skip ci\]//')"
           echo "TAG=$TAG" >> "$GITHUB_ENV"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "BUILD=$BUILD" >> "$GITHUB_ENV"
@@ -162,7 +162,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          printf '%s\n\nHow to install: https://sus1234trwtw.github.io/install.html\n' "$(git log -1 --pretty=%B | grep -v '^Co-Authored-By:')" > notes.md
+          printf '%s\n\nHow to install: https://sus1234trwtw.github.io/install.html\n' "$(git log -1 --pretty=%B | grep -v '^Co-Authored-By:' | sed 's/ *\[skip ci\]//')" > notes.md
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" "$IPA" source.json --clobber
           else
