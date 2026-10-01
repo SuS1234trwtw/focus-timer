@@ -56,6 +56,12 @@ To test full cycles quickly, add `-fastTimer` under *Scheme → Run → Argument
 
 Installing on a real device needs code signing: either Xcode on a Mac with your Apple ID (free accounts work for your own phone, re-sign every 7 days), or an Apple Developer Program membership for TestFlight via Xcode Cloud or a signed CI job.
 
+## License
+
+Focus is open source under the [MIT License](LICENSE). Bundled fonts are downloaded at build time and stay under their own licenses (SIL Open Font License, Ubuntu Font Licence, Apache 2.0).
+
+Website, privacy policy and terms: https://sus1234trwtw.github.io/
+
 ```bash
 creator note:
 hoi chieu....... hoio chieuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu t-t--t-t-t-t-t-t-t-tt-t-t-t-t-t-t-troi m-m-m--mm-m-m-m-m-m-mua
