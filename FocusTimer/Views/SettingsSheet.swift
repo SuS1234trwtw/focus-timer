@@ -43,6 +43,7 @@ struct SettingsSheet: View {
                 CalendarSettingsSection(palette: palette)
                 IslandSettingsSection(palette: palette)
                 islandSection
+                UpdateSettingsSection(palette: palette)
                 aboutSection
             }
             .font(palette.mono(15, relativeTo: .body))

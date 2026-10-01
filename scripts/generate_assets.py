@@ -128,11 +128,10 @@ def png(path: Path, size: int, pixel) -> None:
 
 
 def icon(path: Path) -> None:
+    # A white terminal prompt ">_" on solid black (same artwork as the website logo).
     S = 1024
-    bg = (0x1A, 0x16, 0x14)
-    orange = (0xF5, 0xA0, 0x5A)
-    green = (0x8F, 0xD6, 0x94)
-    dark = (0x1A, 0x16, 0x14)
+    black = (0, 0, 0)
+    white = (255, 255, 255)
 
     def cov(d):  # signed distance -> coverage, ~1.5px antialiasing
         return max(0.0, min(1.0, 0.5 - d / 1.5))
@@ -145,23 +144,15 @@ def icon(path: Path) -> None:
     def mix(a, b, k):
         return tuple(a[i] + (b[i] - a[i]) * k for i in range(3))
 
-    cx, cy, R = 512, 560, 330
+    r = 0.0425 * S  # round-capped strokes, 8.5% of the icon wide
+    p = lambda fx, fy: (fx * S, fy * S)
+    (ax, ay), (bx, by), (cx, cy) = p(0.27, 0.33), p(0.45, 0.50), p(0.27, 0.67)
+    (ux, uy), (vx, vy) = p(0.55, 0.67), p(0.74, 0.67)
 
     def pixel(x, y):
-        c = bg
-        # soft orange glow behind the tomato
-        glow = max(0.0, 1 - math.hypot(x - cx, y - cy) / 620) ** 2 * 0.18
-        c = mix(c, orange, glow)
-        # tomato body
-        c = mix(c, orange, cov(math.hypot(x - cx, y - cy) - R))
-        # leaf: two capsules
-        leaf = min(seg(x, y, 512, 250, 420, 200, 34), seg(x, y, 512, 250, 604, 200, 34),
-                   seg(x, y, 512, 250, 512, 170, 22))
-        c = mix(c, green, cov(leaf))
-        # terminal prompt ">_" cut into the tomato
-        chevron = min(seg(x, y, 380, 470, 470, 560, 30), seg(x, y, 470, 560, 380, 650, 30))
-        underscore = seg(x, y, 530, 650, 650, 650, 30)
-        c = mix(c, dark, cov(min(chevron, underscore)))
+        chevron = min(seg(x, y, ax, ay, bx, by, r), seg(x, y, bx, by, cx, cy, r))
+        underscore = seg(x, y, ux, uy, vx, vy, r)
+        c = mix(black, white, cov(min(chevron, underscore)))
         return tuple(int(round(v)) for v in c)
 
     png(path, S, pixel)

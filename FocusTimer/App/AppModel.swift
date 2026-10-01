@@ -157,6 +157,7 @@ final class AppModel {
         live.appAlive = true
         refreshLiveActivity()
         Task { await GoogleCalendarService.shared.flushPending() }
+        Task { await UpdateChecker.shared.checkIfDue() }
     }
 
     /// Pushes the current timer state to the Live Activity, the Dynamic Island and the widgets.

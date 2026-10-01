@@ -65,6 +65,10 @@ struct RootView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
+                    if UpdateChecker.shared.showsBanner, let update = UpdateChecker.shared.available {
+                        updateBanner(update)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                     HeaderView(
                         palette: palette,
                         mode: engine.mode,
@@ -151,6 +155,38 @@ struct RootView: View {
         .onChange(of: engine.isRunning, initial: true) { _, running in
             UIApplication.shared.isIdleTimerDisabled = running
         }
+    }
+
+    // MARK: Update banner
+
+    /// One terminal line saying a newer build is out; tap opens Settings, `[x]` hides it for this build.
+    private func updateBanner(_ update: UpdateChecker.Update) -> some View {
+        HStack(spacing: 8) {
+            Button {
+                Feedback.play(.tap)
+                showSettings = true
+            } label: {
+                Text("> update available: focus \(update.version) (\(update.build))")
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Update available: Focus \(update.version), build \(update.build). Opens settings.")
+            Button {
+                Feedback.play(.tap)
+                withAnimation(.easeInOut(duration: 0.25)) { UpdateChecker.shared.dismissBanner() }
+            } label: {
+                Text("[x]")
+                    .frame(minWidth: 32, minHeight: 32)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss update notice")
+        }
+        .font(palette.mono(13, relativeTo: .footnote))
+        .foregroundStyle(palette.accent)
     }
 
     // MARK: Timer actions

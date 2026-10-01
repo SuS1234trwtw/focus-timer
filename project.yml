@@ -34,8 +34,8 @@ targets:
       path: FocusTimer/Info.plist
       properties:
         CFBundleDisplayName: Focus
-        CFBundleShortVersionString: "1.7.0"
-        CFBundleVersion: "16"
+        CFBundleShortVersionString: "1.7.1"
+        CFBundleVersion: "17"
         ITSAppUsesNonExemptEncryption: false
         UILaunchScreen:
           UIColorName: LaunchBackground
@@ -72,8 +72,8 @@ targets:
       path: FocusWidgets/Info.plist
       properties:
         CFBundleDisplayName: Focus
-        CFBundleShortVersionString: "1.7.0"
-        CFBundleVersion: "16"
+        CFBundleShortVersionString: "1.7.1"
+        CFBundleVersion: "17"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:

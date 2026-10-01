@@ -1,10 +1,14 @@
 name: IPA
 
-# Builds an unsigned Release .ipa for sideloading (Sideloadly / AltStore re-sign it with your Apple ID).
+# Builds an unsigned Release .ipa for sideloading (iloader / SideStore re-sign it with your Apple ID)
+# and publishes it as a GitHub Release.
 on:
   workflow_dispatch:
   push:
     tags: ["v*"]
+
+permissions:
+  contents: write  # publish the GitHub Release
 
 jobs:
   ipa:
@@ -101,6 +105,70 @@ jobs:
           name: FocusTimer-ipa
           path: ${{ env.IPA }}
           if-no-files-found: error
+
+      # Every build becomes a GitHub Release with the IPA and a SideStore/AltStore source.
+      # releases/latest/download/source.json always serves the newest one: the app's update check and
+      # SideStore both read it.
+      - name: Write SideStore source
+        run: |
+          APP=build/Build/Products/Release-iphoneos/FocusTimer.app
+          export VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Info.plist")
+          export BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APP/Info.plist")
+          export TAG="v$VERSION-$BUILD"
+          export SIZE=$(stat -f%z "$IPA")
+          export NOTES="$(git log -1 --pretty=%B | grep -v '^Co-Authored-By:')"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "BUILD=$BUILD" >> "$GITHUB_ENV"
+          python3 - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          repo = "https://github.com/SuS1234trwtw/focus-timer"
+          site = "https://sus1234trwtw.github.io"
+          source = {
+              "name": "Focus",
+              "identifier": "io.github.sus1234trwtw.focus",
+              "subtitle": "Pomodoro timer and task list",
+              "iconURL": f"{site}/logo.png",
+              "website": site + "/",
+              "apps": [{
+                  "name": "Focus",
+                  "bundleIdentifier": "com.focustimer.app",
+                  "developerName": "An Le",
+                  "subtitle": "Terminal-style Pomodoro timer",
+                  "localizedDescription": "A minimal Pomodoro timer and task list with a terminal look, Dynamic Island countdown, optional Spotify now-playing and Google Calendar logging.",
+                  "iconURL": f"{site}/logo.png",
+                  "tintColor": "#000000",
+                  "category": "productivity",
+                  "versions": [{
+                      "version": os.environ["VERSION"],
+                      "buildVersion": os.environ["BUILD"],
+                      "date": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                      "localizedDescription": os.environ["NOTES"].strip(),
+                      "downloadURL": f"{repo}/releases/download/{os.environ['TAG']}/{os.environ['IPA']}",
+                      "size": int(os.environ["SIZE"]),
+                      "minOSVersion": "26.0",
+                  }],
+                  "appPermissions": {"entitlements": [], "privacy": {}},
+              }],
+              "news": [],
+          }
+          with open("source.json", "w") as f:
+              json.dump(source, f, indent=2)
+          PY
+          cat source.json
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s\n\nHow to install: https://sus1234trwtw.github.io/install.html\n' "$(git log -1 --pretty=%B | grep -v '^Co-Authored-By:')" > notes.md
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "$IPA" source.json --clobber
+          else
+            gh release create "$TAG" "$IPA" source.json --target "$GITHUB_SHA" \
+              --title "Focus $VERSION ($BUILD)" --notes-file notes.md --latest
+          fi
 
       - name: Upload build log
         if: failure()
