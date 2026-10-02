@@ -36,6 +36,21 @@ struct SpotifyAuthTests {
     }
 }
 
+struct SpotifyTokenFailureTests {
+    @Test func deadRefreshTokenUnlinks() {
+        let body = Data(#"{"error":"invalid_grant","error_description":"Refresh token revoked"}"#.utf8)
+        #expect(SpotifyAuth.tokenFailure(status: 400, body: body) == .revoked)
+        #expect(SpotifyAuth.tokenFailure(status: 401, body: Data()) == .revoked)
+    }
+
+    @Test func hiccupsKeepTheLogin() {
+        #expect(SpotifyAuth.tokenFailure(status: 500, body: Data()) == .transient)
+        #expect(SpotifyAuth.tokenFailure(status: 503, body: Data()) == .transient)
+        #expect(SpotifyAuth.tokenFailure(status: 429, body: Data()) == .transient)
+        #expect(SpotifyAuth.tokenFailure(status: 400, body: Data(#"{"error":"invalid_request"}"#.utf8)) == .transient)
+    }
+}
+
 struct FontChoicesTests {
     @Test func defaultsPerStyle() {
         #expect(FontChoices.font(for: .mono, in: "") == .geist)

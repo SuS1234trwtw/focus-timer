@@ -83,7 +83,7 @@ enum SpotifyAuth {
         let expires_in: Double
     }
 
-    static func exchange(code: String, verifier: String) async throws -> Tokens {
+    static func exchange(code: String, verifier: String) async throws(TokenError) -> Tokens {
         try await requestTokens([
             "grant_type": "authorization_code",
             "code": code,
@@ -93,7 +93,7 @@ enum SpotifyAuth {
         ], previousRefresh: nil)
     }
 
-    static func refresh(_ tokens: Tokens) async throws -> Tokens {
+    static func refresh(_ tokens: Tokens) async throws(TokenError) -> Tokens {
         try await requestTokens([
             "grant_type": "refresh_token",
             "refresh_token": tokens.refreshToken,
@@ -101,18 +101,35 @@ enum SpotifyAuth {
         ], previousRefresh: tokens.refreshToken)
     }
 
-    private static func requestTokens(_ form: [String: String], previousRefresh: String?) async throws -> Tokens {
+    /// Why a token request failed: only `revoked` means the link is gone for good.
+    enum TokenError: Error, Equatable {
+        /// Spotify rejected the refresh token (unlinked in Spotify, or already rotated away).
+        case revoked
+        /// Offline, timed out, or Spotify had a hiccup; the saved login still works later.
+        case transient
+    }
+
+    /// Spotify answers a dead refresh token with 400 `invalid_grant`; anything else is worth retrying.
+    static func tokenFailure(status: Int, body: Data) -> TokenError {
+        let text = String(decoding: body, as: UTF8.self)
+        return (status == 400 && text.contains("invalid_grant")) || status == 401 ? .revoked : .transient
+    }
+
+    private static func requestTokens(_ form: [String: String], previousRefresh: String?) async throws(TokenError) -> Tokens {
         var request = URLRequest(url: URL(string: "https://accounts.spotify.com/api/token")!)
         request.httpMethod = "POST"
+        request.timeoutInterval = 20
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         var body = URLComponents()
         body.queryItems = form.map { URLQueryItem(name: $0.key, value: $0.value) }
         request.httpBody = body.percentEncodedQuery?.data(using: .utf8)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.userAuthenticationRequired) }
-        let decoded = try JSONDecoder().decode(TokenResponse.self, from: data)
-        guard let refresh = decoded.refresh_token ?? previousRefresh else { throw URLError(.userAuthenticationRequired) }
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let status = (response as? HTTPURLResponse)?.statusCode else { throw .transient }
+        guard status == 200 else { throw tokenFailure(status: status, body: data) }
+        guard let decoded = try? JSONDecoder().decode(TokenResponse.self, from: data) else { throw .transient }
+        // Spotify rotates refresh tokens: keep the new one when it sends one, else the old one stays valid.
+        guard let refresh = decoded.refresh_token ?? previousRefresh else { throw .revoked }
         return Tokens(accessToken: decoded.access_token, refreshToken: refresh,
                       expiresAt: .now.addingTimeInterval(decoded.expires_in))
     }

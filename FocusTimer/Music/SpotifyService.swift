@@ -24,6 +24,9 @@ final class SpotifyService {
     private(set) var message: String?
 
     @ObservationIgnored private var tokens: SpotifyAuth.Tokens?
+    /// The one token refresh in flight. Spotify rotates refresh tokens, so two refreshes racing
+    /// with the same old token would make the second fail and unlink the account.
+    @ObservationIgnored private var refreshing: Task<SpotifyAuth.Tokens, any Error>?
 
     var isConfigured: Bool { SpotifyAuth.isConfigured }
 
@@ -151,17 +154,36 @@ final class SpotifyService {
 
     // MARK: Transport
 
+    /// Refreshes once even when several requests ask at the same time; they all share the result.
+    private func freshTokens(_ current: SpotifyAuth.Tokens) async throws(SpotifyAuth.TokenError) -> SpotifyAuth.Tokens {
+        let task = refreshing ?? Task { try await SpotifyAuth.refresh(current) }
+        refreshing = task
+        defer { if refreshing == task { refreshing = nil } }
+        let refreshed: SpotifyAuth.Tokens
+        do {
+            refreshed = try await task.value
+        } catch {
+            throw (error as? SpotifyAuth.TokenError) ?? .transient
+        }
+        guard tokens != nil else { throw .transient } // unlinked while the refresh was running
+        tokens = refreshed
+        SpotifyAuth.saveTokens(refreshed)
+        return refreshed
+    }
+
     private func send(_ method: String, _ path: String) async -> (Data, Int)? {
         guard var current = tokens else { return nil }
         if current.isExpired {
-            guard let refreshed = try? await SpotifyAuth.refresh(current) else {
+            do {
+                current = try await freshTokens(current)
+            } catch .revoked {
                 disconnect()
                 message = "Spotify session expired — connect again"
                 return nil
+            } catch {
+                // Offline or Spotify hiccup: keep the login and try again on the next poll.
+                return nil
             }
-            current = refreshed
-            tokens = refreshed
-            SpotifyAuth.saveTokens(refreshed)
         }
         var request = URLRequest(url: URL(string: "https://api.spotify.com/v1" + path)!)
         request.httpMethod = method
