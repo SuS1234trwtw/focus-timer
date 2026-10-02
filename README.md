@@ -1,13 +1,40 @@
+<p align="center">
+  <a href="https://sus1234trwtw.github.io/"><img src="docs/banner.png" alt="Focus: a minimal Pomodoro timer and task list for iPhone, with a terminal-inspired look" width="100%"></a>
+</p>
+
+<h3 align="center">
+  <a href="https://sus1234trwtw.github.io/">sus1234trwtw.github.io</a>
+</h3>
+
+<p align="center">
+  <a href="https://sus1234trwtw.github.io/"><img alt="Website" src="https://img.shields.io/badge/website-sus1234trwtw.github.io-f5f5f2?style=flat-square&labelColor=050505"></a>
+  <a href="https://github.com/SuS1234trwtw/focus-timer/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/SuS1234trwtw/focus-timer?style=flat-square&label=download&color=f5f5f2&labelColor=050505"></a>
+  <a href="https://sus1234trwtw.github.io/install.html"><img alt="Install guide" src="https://img.shields.io/badge/install-step--by--step-f5f5f2?style=flat-square&labelColor=050505"></a>
+  <img alt="iOS 26+" src="https://img.shields.io/badge/iOS-26%2B-f5f5f2?style=flat-square&labelColor=050505">
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-f5f5f2?style=flat-square&labelColor=050505"></a>
+</p>
+
+<p align="center">
+  <a href="https://sus1234trwtw.github.io/"><b>Website</b></a> &nbsp;·&nbsp;
+  <a href="https://sus1234trwtw.github.io/install.html"><b>Install guide</b></a> &nbsp;·&nbsp;
+  <a href="https://github.com/SuS1234trwtw/focus-timer/releases/latest"><b>Download IPA</b></a> &nbsp;·&nbsp;
+  <a href="https://sus1234trwtw.github.io/privacy.html">Privacy</a> &nbsp;·&nbsp;
+  <a href="https://sus1234trwtw.github.io/terms.html">Terms</a>
+</p>
+
+---
+
 # Focus — Pomodoro timer for iOS 26
 
-A minimalist Pomodoro timer with a task list and a cozy dark terminal look. Native SwiftUI app (iOS 26+) with an offline-first SwiftData store that syncs to Supabase.
+A minimal Pomodoro timer and task list for iPhone with a terminal look. Native SwiftUI app (iOS 26+) with an offline-first SwiftData store that syncs to Supabase.
 
-- 25:00 focus / 5:00 break countdown with Start, Pause, Reset, and focus/break tabs
-- Background and accent shift from warm orange (focus) to soft green (break)
-- Gentle two-note chime at zero: played in the app, and through a local notification when the app is closed
-- Task list: add, check off, delete, and tap a task to make it the active one (highlighted, shown under the timer)
-- JetBrains Mono, scanlines, blinking cursor, Liquid Glass controls
-- Tasks and completed sessions sync to Supabase (anonymous auth + row-level security); works fully offline
+- Focus / break timer with custom lengths, sounds and Core Haptics
+- Five terminal styles (Mono, the default, matches the website; plus Cozy, PowerShell, CMD, Ubuntu), each with 16 mono fonts
+- Dynamic Island and lock-screen Live Activity with pause and switch-mode buttons, plus Home Screen widgets
+- Task list: add, check off, delete, and tap a task to make it the one you're focusing on
+- Optional Spotify now-playing controls and Google Calendar logging of finished focus blocks
+- Tasks and sessions sync to Supabase (anonymous auth + row-level security); works fully offline
+- In-app update notices, plus a SideStore source for one-tap updates
 
 ## Layout
 
