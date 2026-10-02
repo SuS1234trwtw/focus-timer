@@ -29,8 +29,8 @@ struct FocusProvider: TimelineProvider {
 
     static let sample = TimerSnapshot(
         mode: "focus", endDate: nil, remaining: 25 * 60, total: 25 * 60, taskTitle: "write the sync layer",
-        style: "cozy", prompt: "~/focus $", accentHex: "F5A05A", backgroundHex: "1A1614",
-        textHex: "E8DCCF", dimHex: "8A7D72", trackLine: nil
+        style: "mono", prompt: "~/focus $", accentHex: "F5F5F2", backgroundHex: "050505",
+        textHex: "F5F5F2", dimHex: "8C8C89", trackLine: nil
     )
 }
 

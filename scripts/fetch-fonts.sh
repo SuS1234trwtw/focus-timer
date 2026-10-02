@@ -14,6 +14,9 @@ fetch() {  # fetch <url> [file name]
   if curl -fsSL "$url" -o "$DEST/$name"; then echo "fetched $name"; else echo "warning: could not fetch $name" >&2; rm -f "$DEST/$name"; fi
 }
 
+GEIST="https://raw.githubusercontent.com/vercel/geist-font/main/fonts/GeistMono/ttf"
+for w in Light Regular Bold; do fetch "$GEIST/GeistMono-$w.ttf"; done
+
 JB="https://raw.githubusercontent.com/JetBrains/JetBrainsMono/master/fonts/ttf"
 for w in Light Regular Bold; do fetch "$JB/JetBrainsMono-$w.ttf"; done
 

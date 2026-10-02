@@ -37,12 +37,13 @@ struct Palette: Equatable {
 
 /// The terminal the app imitates: its colours, prompt, and flavour text.
 enum TerminalStyle: String, CaseIterable, Identifiable {
-    case cozy, powershell, cmd, ubuntu
+    case mono, cozy, powershell, cmd, ubuntu
 
     var id: String { rawValue }
 
     var name: String {
         switch self {
+        case .mono: "Mono"
         case .cozy: "Cozy"
         case .powershell: "PowerShell"
         case .cmd: "CMD"
@@ -50,10 +51,11 @@ enum TerminalStyle: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Each terminal's own font: JetBrains Mono for cozy, Cascadia Mono (Windows Terminal) for
-    /// PowerShell and CMD, Ubuntu Mono for Ubuntu.
+    /// Each terminal's own font: Geist Mono for mono (the website's font), JetBrains Mono for cozy,
+    /// Cascadia Mono (Windows Terminal) for PowerShell and CMD, Ubuntu Mono for Ubuntu.
     var defaultFont: TerminalFont {
         switch self {
+        case .mono: .geist
         case .cozy: .jetbrains
         case .powershell, .cmd: .cascadia
         case .ubuntu: .ubuntu
@@ -68,6 +70,14 @@ enum TerminalStyle: String, CaseIterable, Identifiable {
 
     private func colors(for mode: TimerMode) -> Palette {
         switch (self, mode) {
+        case (.mono, .focus):
+            // The website: near-black, off-white text and accent, faint hairlines.
+            Palette(background: Color(hex: 0x050505), surface: Color(hex: 0x0C0C0C), border: Color(hex: 0x2A2A29),
+                    accent: Color(hex: 0xF5F5F2), text: Color(hex: 0xF5F5F2), dim: Color(hex: 0x8C8C89), style: self)
+        case (.mono, .rest):
+            // Same ink on a break, lifted a little so the switch still reads.
+            Palette(background: Color(hex: 0x0D0D0D), surface: Color(hex: 0x151515), border: Color(hex: 0x323231),
+                    accent: Color(hex: 0xC9C9C5), text: Color(hex: 0xF5F5F2), dim: Color(hex: 0x8C8C89), style: self)
         case (.cozy, .focus):
             Palette(background: Color(hex: 0x1A1614), surface: Color(hex: 0x241E1B), border: Color(hex: 0x3A302A),
                     accent: Color(hex: 0xF5A05A), text: Color(hex: 0xE8DCCF), dim: Color(hex: 0x8A7D72), style: self)
@@ -106,7 +116,7 @@ enum TerminalStyle: String, CaseIterable, Identifiable {
     /// Header prompt, split so the path can take the accent colour.
     var promptPath: String {
         switch self {
-        case .cozy: "~/focus "
+        case .mono, .cozy: "~/focus "
         case .powershell: "PS C:\\focus"
         case .cmd: "C:\\Users\\focus"
         case .ubuntu: ":~/focus"
@@ -115,13 +125,14 @@ enum TerminalStyle: String, CaseIterable, Identifiable {
 
     var promptSymbol: String {
         switch self {
-        case .cozy, .ubuntu: "$ "
+        case .mono, .cozy, .ubuntu: "$ "
         case .powershell, .cmd: "> "
         }
     }
 
     var command: String {
         switch self {
+        case .mono: "focus --start"
         case .cozy, .ubuntu: "pomodoro"
         case .powershell: "Start-Pomodoro"
         case .cmd: "pomodoro.exe"
@@ -131,12 +142,13 @@ enum TerminalStyle: String, CaseIterable, Identifiable {
     var cursor: String {
         switch self {
         case .cozy, .ubuntu: "▌"
-        case .powershell, .cmd: "_"
+        case .mono, .powershell, .cmd: "_"
         }
     }
 
     var tasksCommand: String {
         switch self {
+        case .mono: "$ focus --tasks"
         case .cozy: "$ tasks --list"
         case .powershell: "PS> Get-Task"
         case .cmd: "C:\\focus> dir tasks"
@@ -146,7 +158,7 @@ enum TerminalStyle: String, CaseIterable, Identifiable {
 
     var emptyTasks: String {
         switch self {
-        case .cozy: "// nothing queued. add something to focus on."
+        case .mono, .cozy: "// nothing queued. add something to focus on."
         case .powershell: "# No tasks found. Type below to run New-Task."
         case .cmd: "File Not Found"
         case .ubuntu: "ls: cannot access 'tasks': No such file or directory"
@@ -155,7 +167,7 @@ enum TerminalStyle: String, CaseIterable, Identifiable {
 
     var linePrefix: String {
         switch self {
-        case .cozy, .ubuntu: "> "
+        case .mono, .cozy, .ubuntu: "> "
         case .powershell: "PS> "
         case .cmd: "C:\\> "
         }
@@ -163,7 +175,7 @@ enum TerminalStyle: String, CaseIterable, Identifiable {
 
     var settingsTitle: String {
         switch self {
-        case .cozy: "~/config"
+        case .mono, .cozy: "~/config"
         case .powershell: "Get-Config"
         case .cmd: "C:\\focus>config"
         case .ubuntu: "~/.config/focus"
@@ -172,7 +184,7 @@ enum TerminalStyle: String, CaseIterable, Identifiable {
 
     var versionCommand: String {
         switch self {
-        case .cozy, .ubuntu: "$ focus --version"
+        case .mono, .cozy, .ubuntu: "$ focus --version"
         case .powershell: "PS> (Get-Focus).Version"
         case .cmd: "C:\\focus> ver"
         }
@@ -180,6 +192,7 @@ enum TerminalStyle: String, CaseIterable, Identifiable {
 
     func sectionHeader(_ name: String) -> String {
         switch self {
+        case .mono: "// \(name.uppercased())"
         case .cozy, .ubuntu: "# \(name)"
         case .powershell: "## \(name.capitalized)"
         case .cmd: "REM \(name)"
@@ -188,6 +201,18 @@ enum TerminalStyle: String, CaseIterable, Identifiable {
 
     /// CRT scanlines and vignette suit the cozy terminal; the others are flat modern consoles.
     var hasScanlines: Bool { self == .cozy }
+
+    /// Mono mirrors the website: square hairline boxes, no accent glow, spaced uppercase labels.
+    var isFlat: Bool { self == .mono }
+
+    /// Corner radius for boxes, squared off in the flat style.
+    func radius(_ rounded: CGFloat) -> CGFloat { isFlat ? 0 : rounded }
+
+    /// A small label, set the website's way (UPPERCASE, wide tracking) in the flat style.
+    func label(_ text: String) -> String { isFlat ? text.uppercased() : text }
+
+    /// Letter spacing for small labels in the flat style.
+    var labelTracking: CGFloat { isFlat ? 1.4 : 0 }
 }
 
 /// Which font each style uses, stored as one string ("cozy=jetbrains;cmd=vt323") so new styles
@@ -280,12 +305,13 @@ enum Theme {
 
 /// Monospaced terminal fonts the user can pick per style.
 enum TerminalFont: String, CaseIterable, Identifiable {
-    case jetbrains, cascadia, sfMono, menlo, courier, plex, fira, sourceCode, space, ubuntu, dejavu, noto, anonymous, shareTech, vt323
+    case geist, jetbrains, cascadia, sfMono, menlo, courier, plex, fira, sourceCode, space, ubuntu, dejavu, noto, anonymous, shareTech, vt323
 
     var id: String { rawValue }
 
     var name: String {
         switch self {
+        case .geist: "Geist Mono"
         case .jetbrains: "JetBrains Mono"
         case .cascadia: "Cascadia Mono"
         case .sfMono: "SF Mono"
@@ -315,6 +341,7 @@ enum TerminalFont: String, CaseIterable, Identifiable {
 
     private var source: Source {
         switch self {
+        case .geist: .bundled(light: "GeistMono-Light", regular: "GeistMono-Regular", bold: "GeistMono-Bold")
         case .jetbrains: .bundled(light: "JetBrainsMono-Light", regular: "JetBrainsMono-Regular", bold: "JetBrainsMono-Bold")
         case .cascadia: .bundled(light: "CascadiaMono-Light", regular: "CascadiaMono-Regular", bold: "CascadiaMono-Bold")
         case .sfMono: .system

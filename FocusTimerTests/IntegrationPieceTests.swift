@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 @testable import FocusTimer
 
@@ -37,6 +38,7 @@ struct SpotifyAuthTests {
 
 struct FontChoicesTests {
     @Test func defaultsPerStyle() {
+        #expect(FontChoices.font(for: .mono, in: "") == .geist)
         #expect(FontChoices.font(for: .cozy, in: "") == .jetbrains)
         #expect(FontChoices.font(for: .cmd, in: "") == .cascadia)
         #expect(FontChoices.font(for: .ubuntu, in: "") == .ubuntu)
@@ -63,6 +65,24 @@ struct FontChoicesTests {
         let stored = try #require(defaults.string(forKey: FontChoices.key))
         #expect(FontChoices.font(for: .cozy, in: stored) == .plex)
         #expect(FontChoices.font(for: .powershell, in: stored) == .cascadia)
+    }
+}
+
+struct MonoStyleTests {
+    @Test func monoIsListedFirstAndFlat() {
+        #expect(TerminalStyle.allCases.first == .mono)
+        #expect(TerminalStyle.mono.isFlat)
+        #expect(!TerminalStyle.cozy.isFlat)
+        #expect(TerminalStyle.mono.radius(10) == 0)
+        #expect(TerminalStyle.cozy.radius(10) == 10)
+    }
+
+    @Test func monoMatchesTheWebsiteInk() {
+        let focus = TerminalStyle.mono.basePalette(for: .focus)
+        #expect(focus.background == Color(hex: 0x050505))
+        #expect(focus.text == Color(hex: 0xF5F5F2))
+        #expect(TerminalStyle.mono.label("3 open") == "3 OPEN")
+        #expect(TerminalStyle.cozy.label("3 open") == "3 open")
     }
 }
 

@@ -35,17 +35,18 @@ struct HeaderView: View {
             .minimumScaleFactor(0.7)
 
             HStack(spacing: 14) {
-                Text("[ \(mode.label) ]")
+                Text(palette.style.label("[ \(mode.label) ]"))
                     .foregroundStyle(palette.accent)
                     .contentTransition(.opacity)
-                Text("◆ \(sessionsToday) today")
+                Text(palette.style.label("◆ \(sessionsToday) today"))
                     .foregroundStyle(palette.dim)
                     .contentTransition(.numericText())
                 Spacer()
-                Text(syncLabel)
+                Text(palette.style.label(syncLabel))
                     .foregroundStyle(syncStatus == .offline ? Color(hex: 0xE0786A) : palette.dim)
             }
-            .font(palette.mono(12, relativeTo: .caption))
+            .font(palette.mono(palette.style.isFlat ? 10.5 : 12, relativeTo: .caption))
+            .tracking(palette.style.labelTracking)
         }
         .accessibilityElement(children: .contain)
     }

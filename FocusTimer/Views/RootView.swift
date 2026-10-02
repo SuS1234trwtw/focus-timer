@@ -15,7 +15,7 @@ struct RootView: View {
 
     @AppStorage("focusMinutes") private var focusMinutes = 25
     @AppStorage("restMinutes") private var restMinutes = 5
-    @AppStorage("terminalStyle") private var terminalStyle: TerminalStyle = .cozy
+    @AppStorage("terminalStyle") private var terminalStyle: TerminalStyle = .mono
     @AppStorage("focusAccentHex") private var focusAccentHex = ""
     @AppStorage("restAccentHex") private var restAccentHex = ""
     @AppStorage("focusBackgroundHex") private var focusBackgroundHex = ""
@@ -59,7 +59,7 @@ struct RootView: View {
     var body: some View {
         ZStack {
             palette.background.ignoresSafeArea()
-            TerminalOverlay(accent: palette.accent, scanlines: palette.style.hasScanlines)
+            TerminalOverlay(accent: palette.accent, scanlines: palette.style.hasScanlines, glow: !palette.style.isFlat)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
 

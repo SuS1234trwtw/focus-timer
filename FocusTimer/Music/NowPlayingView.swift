@@ -35,8 +35,8 @@ struct NowPlayingView: View {
             }
         }
         .padding(14)
-        .background(palette.surface.opacity(0.55), in: .rect(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(palette.border, lineWidth: 1))
+        .background(palette.surface.opacity(0.55), in: .rect(cornerRadius: palette.style.radius(10)))
+        .overlay(RoundedRectangle(cornerRadius: palette.style.radius(10)).strokeBorder(palette.border, lineWidth: 1))
         .animation(.easeInOut(duration: 0.25), value: spotify.track)
     }
 
@@ -51,7 +51,7 @@ struct NowPlayingView: View {
                 .background(palette.border.opacity(0.4))
         }
         .frame(width: 42, height: 42)
-        .clipShape(.rect(cornerRadius: 6))
+        .clipShape(.rect(cornerRadius: palette.style.radius(6)))
         .accessibilityHidden(true)
     }
 

@@ -14,8 +14,8 @@ struct LiveLook: Equatable, Codable {
     var dimHex: String
 
     static let placeholder = LiveLook(
-        style: "cozy", prompt: "~/focus $", accentHex: "F5A05A",
-        backgroundHex: "1A1614", textHex: "E8DCCF", dimHex: "8A7D72"
+        style: "mono", prompt: "~/focus $", accentHex: "F5F5F2",
+        backgroundHex: "050505", textHex: "F5F5F2", dimHex: "8C8C89"
     )
 
     private static let key = "liveActivity.look"

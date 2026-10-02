@@ -24,7 +24,11 @@ struct TimerView: View {
                 .animation(.snappy(duration: 0.3), value: engine.remaining.clockString)
                 .accessibilityLabel("\(Int(engine.remaining.rounded(.up)) / 60) minutes \(Int(engine.remaining.rounded(.up)) % 60) seconds remaining")
 
-            AsciiProgressBar(progress: engine.progress, palette: palette)
+            if palette.style.isFlat {
+                LineProgressBar(progress: engine.progress, palette: palette)
+            } else {
+                AsciiProgressBar(progress: engine.progress, palette: palette)
+            }
 
             Text(focusLine)
                 .font(palette.mono(13, relativeTo: .footnote))
@@ -38,8 +42,8 @@ struct TimerView: View {
         .padding(.vertical, 28)
         .padding(.horizontal, 18)
         .frame(maxWidth: .infinity)
-        .background(palette.surface.opacity(0.55), in: .rect(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(palette.border, lineWidth: 1))
+        .background(palette.surface.opacity(0.55), in: .rect(cornerRadius: palette.style.radius(10)))
+        .overlay(RoundedRectangle(cornerRadius: palette.style.radius(10)).strokeBorder(palette.border, lineWidth: 1))
     }
 
     private var focusLine: String {
@@ -56,8 +60,10 @@ struct TimerView: View {
                 Button {
                     onSwitch(mode)
                 } label: {
-                    Text(selected ? "[\(mode.label.lowercased())]" : " \(mode.label.lowercased()) ")
-                        .font(palette.mono(14, selected ? .bold : .regular, relativeTo: .subheadline))
+                    let name = palette.style.isFlat ? mode.label.uppercased() : mode.label.lowercased()
+                    Text(selected ? "[\(name)]" : " \(name) ")
+                        .font(palette.mono(palette.style.isFlat ? 12 : 14, selected ? .bold : .regular, relativeTo: .subheadline))
+                        .tracking(palette.style.labelTracking)
                         .foregroundStyle(selected ? palette.accent : palette.dim)
                 }
                 .buttonStyle(.plain)
@@ -67,7 +73,22 @@ struct TimerView: View {
         }
     }
 
+    @ViewBuilder
     private var controls: some View {
+        if palette.style.isFlat {
+            HStack(spacing: 10) {
+                FlatButton(title: "start", palette: palette, prominent: true, action: onStart)
+                    .disabled(engine.isRunning)
+                FlatButton(title: "pause", palette: palette, prominent: false, action: onPause)
+                    .disabled(!engine.isRunning)
+                FlatButton(title: "reset", palette: palette, prominent: false, action: onReset)
+            }
+        } else {
+            glassControls
+        }
+    }
+
+    private var glassControls: some View {
         GlassEffectContainer(spacing: 12) {
             HStack(spacing: 12) {
                 ControlButton(title: "start", systemImage: "play.fill", palette: palette, prominent: true, action: onStart)
@@ -100,6 +121,68 @@ private struct ControlButton: View {
             Button(action: action) { label.foregroundStyle(palette.accent) }
                 .buttonStyle(.glass)
         }
+    }
+}
+
+/// The website's button: a square hairline box with a spaced uppercase label; the prominent one is
+/// solid ink. Pressing flips it, like the site's hover.
+private struct FlatButton: View {
+    let title: String
+    let palette: Palette
+    let prominent: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title.uppercased())
+                .font(palette.mono(12, .bold, relativeTo: .body))
+                .tracking(1.6)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(.rect)
+        }
+        .buttonStyle(FlatButtonStyle(palette: palette, prominent: prominent))
+    }
+}
+
+private struct FlatButtonStyle: ButtonStyle {
+    let palette: Palette
+    let prominent: Bool
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        let filled = prominent != configuration.isPressed
+        configuration.label
+            .foregroundStyle(filled ? palette.background : palette.text)
+            .background(filled ? palette.text : Color.clear)
+            .overlay(Rectangle().strokeBorder(filled ? palette.text : palette.border, lineWidth: 1))
+            .opacity(isEnabled ? 1 : 0.32)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+/// The website's meter: a hairline box with a solid fill and the percentage after it.
+private struct LineProgressBar: View {
+    let progress: Double
+    let palette: Palette
+
+    var body: some View {
+        HStack(spacing: 12) {
+            GeometryReader { proxy in
+                Rectangle()
+                    .fill(palette.accent)
+                    .frame(width: max(0, (proxy.size.width - 4) * progress))
+                    .padding(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .animation(.easeOut(duration: 0.4), value: progress)
+            }
+            .frame(height: 12)
+            .overlay(Rectangle().strokeBorder(palette.border, lineWidth: 1))
+            Text(String(format: "%3ld%%", Int(progress * 100)))
+                .font(palette.mono(12, relativeTo: .footnote))
+                .monospacedDigit()
+                .foregroundStyle(palette.dim)
+        }
+        .accessibilityHidden(true)
     }
 }
 

@@ -12,7 +12,7 @@ struct SettingsSheet: View {
 
     @AppStorage("focusMinutes") private var focusMinutes = 25
     @AppStorage("restMinutes") private var restMinutes = 5
-    @AppStorage("terminalStyle") private var terminalStyle: TerminalStyle = .cozy
+    @AppStorage("terminalStyle") private var terminalStyle: TerminalStyle = .mono
     @AppStorage("focusAccentHex") private var focusAccentHex = ""
     @AppStorage("restAccentHex") private var restAccentHex = ""
     @AppStorage("focusBackgroundHex") private var focusBackgroundHex = ""
@@ -145,9 +145,9 @@ struct SettingsSheet: View {
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(preview.background, in: .rect(cornerRadius: 8))
+            .background(preview.background, in: .rect(cornerRadius: palette.style.radius(8)))
             .overlay {
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: palette.style.radius(8))
                     .strokeBorder(selected ? palette.accent : preview.border, lineWidth: selected ? 2 : 1)
             }
             .contentShape(.rect)

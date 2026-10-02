@@ -20,11 +20,12 @@ struct TaskListView: View {
                 Text(palette.style.tasksCommand)
                     .foregroundStyle(palette.dim)
                 Spacer()
-                Text("\(openCount) open")
+                Text(palette.style.label("\(openCount) open"))
                     .foregroundStyle(palette.dim)
                     .contentTransition(.numericText())
+                    .tracking(palette.style.labelTracking)
             }
-            .font(palette.mono(13, .bold, relativeTo: .footnote))
+            .font(palette.mono(palette.style.isFlat ? 11 : 13, .bold, relativeTo: .footnote))
 
             input
 
@@ -80,8 +81,8 @@ struct TaskListView: View {
         .font(palette.mono(16, relativeTo: .body))
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(palette.surface.opacity(0.55), in: .rect(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(palette.border, lineWidth: 1))
+        .background(palette.surface.opacity(0.55), in: .rect(cornerRadius: palette.style.radius(8)))
+        .overlay(RoundedRectangle(cornerRadius: palette.style.radius(8)).strokeBorder(palette.border, lineWidth: 1))
     }
 
     private func add() {
@@ -145,9 +146,9 @@ private struct TaskRow: View {
         .padding(.leading, 14)
         .padding(.trailing, 8)
         .padding(.vertical, 10)
-        .background(isActive ? palette.accent.opacity(0.10) : palette.surface.opacity(0.4), in: .rect(cornerRadius: 8))
+        .background(isActive ? palette.accent.opacity(0.10) : palette.surface.opacity(0.4), in: .rect(cornerRadius: palette.style.radius(8)))
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: palette.style.radius(8))
                 .strokeBorder(isActive ? palette.accent : palette.border, lineWidth: isActive ? 1.5 : 1)
         )
         .animation(.snappy, value: isActive)

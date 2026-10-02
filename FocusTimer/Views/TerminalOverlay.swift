@@ -4,15 +4,18 @@ import SwiftUI
 struct TerminalOverlay: View {
     let accent: Color
     var scanlines = true
+    var glow = true
 
     var body: some View {
         ZStack {
-            RadialGradient(
-                colors: [accent.opacity(0.14), .clear],
-                center: .top,
-                startRadius: 0,
-                endRadius: 420
-            )
+            if glow {
+                RadialGradient(
+                    colors: [accent.opacity(0.14), .clear],
+                    center: .top,
+                    startRadius: 0,
+                    endRadius: 420
+                )
+            }
             if scanlines {
                 scanlineLayer
                 RadialGradient(
