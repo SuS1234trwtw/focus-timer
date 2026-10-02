@@ -377,7 +377,46 @@ enum TerminalFont: String, CaseIterable, Identifiable {
             case .bold: file = bold ?? regular
             }
             guard let name = FontRegistry.postScriptName(forFile: file) else { return fallback }
+            if self == .geist {
+                // Geist Mono joins `--` into one glyph that swallows the space before it
+                // ("focus --start" showed as "focus--start"); a terminal wants every character as typed.
+                return Self.withoutLigatures(name, size: size, relativeTo: style) ?? .custom(name, size: size, relativeTo: style)
+            }
             return .custom(name, size: size, relativeTo: style)
+        }
+    }
+}
+
+extension TerminalFont {
+    /// The font with common ligatures turned off, still scaled with Dynamic Type.
+    @MainActor
+    static func withoutLigatures(_ name: String, size: CGFloat, relativeTo style: Font.TextStyle) -> Font? {
+        let descriptor = UIFontDescriptor(name: name, size: size).addingAttributes([
+            .featureSettings: [[
+                UIFontDescriptor.FeatureKey.type: kLigaturesType,
+                UIFontDescriptor.FeatureKey.selector: kCommonLigaturesOffSelector
+            ]]
+        ])
+        let font = UIFont(descriptor: descriptor, size: size)
+        guard font.fontName == name else { return nil }
+        return Font(UIFontMetrics(forTextStyle: style.uiTextStyle).scaledFont(for: font))
+    }
+}
+
+private extension Font.TextStyle {
+    var uiTextStyle: UIFont.TextStyle {
+        switch self {
+        case .largeTitle: .largeTitle
+        case .title: .title1
+        case .title2: .title2
+        case .title3: .title3
+        case .headline: .headline
+        case .subheadline: .subheadline
+        case .callout: .callout
+        case .footnote: .footnote
+        case .caption: .caption1
+        case .caption2: .caption2
+        default: .body
         }
     }
 }

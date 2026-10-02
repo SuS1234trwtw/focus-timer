@@ -150,7 +150,8 @@ private struct FlatButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
-        let filled = prominent != configuration.isPressed
+        // A disabled button drops to a plain outline so it never reads as a grey block.
+        let filled = (prominent && isEnabled) != configuration.isPressed
         configuration.label
             .foregroundStyle(filled ? palette.background : palette.text)
             .background(filled ? palette.text : Color.clear)
