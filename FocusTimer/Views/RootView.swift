@@ -24,6 +24,11 @@ struct RootView: View {
     @AppStorage("spotifyInIsland") private var spotifyInIsland = true
 
     @State private var showSettings = false
+    @AppStorage(OnboardingGate.key) private var onboardingDone = false
+    /// The setup guide: new installs, or "run setup again" in Settings.
+    @State private var showOnboarding = false
+    /// The boot screen on each launch (off in Settings, or for CI screenshots).
+    @State private var showBoot = UserDefaults.standard.object(forKey: BootView.enabledKey) as? Bool ?? true
 
     private var appearance: Appearance {
         Appearance(
@@ -96,6 +101,19 @@ struct RootView: View {
             }
             .scrollDismissesKeyboard(.interactively)
         }
+        .overlay {
+            if showOnboarding {
+                OnboardingView { withAnimation(.easeOut(duration: 0.35)) { showOnboarding = false } }
+                    .transition(.opacity)
+            }
+        }
+        .overlay {
+            if showBoot && !Self.isScreenshotRun {
+                BootView(palette: palette) { showBoot = false }
+                    .ignoresSafeArea()
+                    .transition(.identity)
+            }
+        }
         .animation(.easeInOut(duration: 1.2), value: engine.mode)
         .animation(.easeInOut(duration: 0.4), value: appearance)
         .preferredColorScheme(palette.isDark ? .dark : .light)
@@ -103,6 +121,21 @@ struct RootView: View {
         .onChange(of: [focusMinutes, restMinutes]) { _, minutes in
             guard !ProcessInfo.processInfo.arguments.contains("-fastTimer") else { return }
             engine.setDurations(PomodoroDurations(focusMinutes: minutes[0], restMinutes: minutes[1]))
+        }
+        .onAppear {
+            guard !Self.isScreenshotRun else { return }
+            if OnboardingGate.shouldShow(defaults: .standard, taskCount: tasks.count) {
+                showOnboarding = true
+            } else if !onboardingDone {
+                // Someone already using the app: don't walk them through setup after updating.
+                onboardingDone = true
+            }
+        }
+        .onChange(of: onboardingDone) { _, done in
+            // Settings → "run setup again" clears the flag.
+            guard !done else { return }
+            showSettings = false
+            withAnimation(.easeOut(duration: 0.35)) { showOnboarding = true }
         }
         .task { await runClock() }
         .task { await sync.syncNow() }
@@ -140,7 +173,7 @@ struct RootView: View {
         .onChange(of: scenePhase, initial: true) { _, phase in
             switch phase {
             case .active:
-                // On screen: create or renew the always-on Live Activity (only allowed now).
+                // On screen: create or renew the Live Activity if a block is in use (only allowed now).
                 model.isAppActive = true
                 if let segment = engine.tick() { model.finish(segment) }
                 model.refreshLiveActivity()
@@ -155,6 +188,12 @@ struct RootView: View {
         .onChange(of: engine.isRunning, initial: true) { _, running in
             UIApplication.shared.isIdleTimerDisabled = running
         }
+    }
+
+    /// CI screenshot runs seed demo data and must land on the timer, not the boot screen.
+    private static var isScreenshotRun: Bool {
+        let args = ProcessInfo.processInfo.arguments
+        return args.contains("-seedDemo") || args.contains("-autostart")
     }
 
     // MARK: Update banner

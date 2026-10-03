@@ -88,7 +88,9 @@ final class AppModel {
         // The block already ran out while we were suspended (the island shows 00:00 and "start"):
         // record it, then start the next block, so one tap does what the button says.
         if let segment = engine.tick() {
-            finish(segment)
+            // Don't refresh in between: the idle moment would end the island, and from the
+            // background (an island button press) iOS wouldn't let `start` create a new one.
+            finish(segment, refreshIsland: false)
             start()
             return
         }
@@ -113,7 +115,8 @@ final class AppModel {
     func switchAndStart() {
         if let segment = engine.tick() {
             // The block ended while the phone was locked: the timer already moved to the next mode.
-            finish(segment)
+            // `start` refreshes the island (see `toggle` for why not here).
+            finish(segment, refreshIsland: false)
         } else {
             engine.switchMode(to: engine.mode.next)
             TimerNotifier.cancel()
@@ -121,7 +124,9 @@ final class AppModel {
         start()
     }
 
-    func finish(_ segment: CompletedSegment) {
+    /// Records a finished block. The timer is now idle, so by default the island is ended; pass
+    /// `refreshIsland: false` when the next block starts straight away and should keep it.
+    func finish(_ segment: CompletedSegment, refreshIsland: Bool = true) {
         // If the app was in the background, the scheduled notification already rang.
         if segment.lateBy < 3 {
             ChimePlayer.shared.play()
@@ -131,10 +136,10 @@ final class AppModel {
         GoogleCalendarService.shared.log(
             mode: segment.mode.rawValue, start: segment.startedAt, end: segment.endedAt,
             taskTitle: segment.mode == .focus ? currentTask?.title : nil)
-        refreshLiveActivity()
+        if refreshIsland { refreshLiveActivity() }
     }
 
-    /// Settings → island → restart: ends any island and creates a fresh one.
+    /// Settings → island → restart: ends any island and, while the timer is in use, creates a fresh one.
     func restartLiveActivity() {
         live.restart(
             engine: engine,
@@ -146,15 +151,14 @@ final class AppModel {
 
     // MARK: App lifecycle (see `AppLifecycle`)
 
-    /// The app is about to be killed (e.g. swiped away): keep the island but hide its buttons.
-    /// Blocks briefly so the update reaches iOS before the process ends.
+    /// The app is about to be killed (e.g. swiped away): end the island, since nothing will drive it.
+    /// Blocks briefly so iOS takes it down before the process ends.
     func appWillTerminate() {
-        live.markTerminated()
+        LiveActivityController.endAllBlocking()
     }
 
-    /// Back on screen: the island's buttons may show again.
+    /// Back on screen: bring the island in line with the timer (create it if a block is in use).
     func appDidBecomeActive() {
-        live.appAlive = true
         refreshLiveActivity()
         Task { await GoogleCalendarService.shared.flushPending() }
         Task { await UpdateChecker.shared.checkIfDue() }

@@ -27,7 +27,7 @@ struct IslandSettingsSection: View {
                 .font(palette.mono(12, .bold, relativeTo: .caption))
                 .foregroundStyle(palette.accent)
         } footer: {
-            Text("Pause and focus/break buttons on the Dynamic Island and lock screen. They only show while the timer is running, and hide when it's paused, the block has ended, or the app was closed; the island itself stays.")
+            Text("The Dynamic Island and lock-screen timer show while a block is running or paused, and disappear when the timer is idle or the app is closed. Its pause and focus/break buttons only show while the timer is running.")
                 .font(palette.mono(11, relativeTo: .caption))
                 .foregroundStyle(palette.dim)
         }

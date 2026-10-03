@@ -127,6 +127,95 @@ final class SyncCoordinator {
         }
     }
 
+    // MARK: Account switching (see `AccountService`)
+
+    /// The Supabase connection, or nil in local-only mode.
+    var supabase: SupabaseService? { service }
+
+    /// Forgets how far the last pull got, so the next sync downloads every row again.
+    func resetPullCursor() {
+        defaults.removeObject(forKey: lastPulledKey)
+    }
+
+    /// Waits for a sync in flight to finish (and drops a scheduled one) before the signed-in user changes.
+    func waitUntilIdle() async {
+        pending?.cancel()
+        pending = nil
+        while isRunning {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+    }
+
+    /// After logging in to an existing account: local rows were uploaded under the previous (guest)
+    /// user, whose ids the account can't write to (RLS). Gives them fresh ids and marks them dirty so
+    /// the next sync pushes them under the account. Tasks the account already has (same title and
+    /// creation time, e.g. after signing out and back in) are dropped locally; the pull brings them back.
+    func adoptLocalData() async {
+        await waitUntilIdle()
+        guard let service else { return }
+        let remote = (try? await service.fetchTasks(updatedAfter: nil)) ?? []
+        var remoteByKey: [String: UUID] = [:]
+        for row in remote where row.deletedAt == nil {
+            remoteByKey[Self.matchKey(title: row.title, createdAt: row.createdAt)] = row.id
+        }
+
+        var newIDs: [UUID: UUID] = [:]
+        let tasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
+        for task in tasks {
+            if task.deletedAt != nil {
+                context.delete(task)
+            } else if let existing = remoteByKey[Self.matchKey(title: task.title, createdAt: task.createdAt)] {
+                newIDs[task.id] = existing
+                context.delete(task)
+            } else {
+                let fresh = UUID()
+                newIDs[task.id] = fresh
+                task.id = fresh
+                task.needsSync = true
+            }
+        }
+        let sessions = (try? context.fetch(FetchDescriptor<FocusSessionRecord>())) ?? []
+        for session in sessions {
+            session.id = UUID()
+            session.taskID = session.taskID.map { newIDs[$0] ?? $0 }
+            session.needsSync = true
+        }
+        try? context.save()
+        resetPullCursor()
+    }
+
+    /// Before signing out to a fresh guest: keeps every task on the device (with fresh ids, so the
+    /// new guest can back them up) and drops session records that are already saved in the account.
+    func prepareForSignOut() async {
+        await waitUntilIdle()
+        var newIDs: [UUID: UUID] = [:]
+        let tasks = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
+        for task in tasks {
+            if task.deletedAt != nil {
+                context.delete(task)
+            } else {
+                let fresh = UUID()
+                newIDs[task.id] = fresh
+                task.id = fresh
+                task.needsSync = true
+            }
+        }
+        let sessions = (try? context.fetch(FetchDescriptor<FocusSessionRecord>())) ?? []
+        for session in sessions {
+            if session.needsSync {
+                session.taskID = session.taskID.map { newIDs[$0] ?? $0 }
+            } else {
+                context.delete(session)
+            }
+        }
+        try? context.save()
+        resetPullCursor()
+    }
+
+    private static func matchKey(title: String, createdAt: Date) -> String {
+        "\(title)|\(Int((createdAt.timeIntervalSince1970 * 1000).rounded()))"
+    }
+
     // MARK: Local-only mode
 
     private func purgeTombstones() {

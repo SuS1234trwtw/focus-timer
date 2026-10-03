@@ -27,6 +27,14 @@ final class SupabaseService: Sendable {
         _ = try await client.auth.signInAnonymously()
     }
 
+    /// The signed-in user as the server sees it now (picks up an email confirmed in the browser);
+    /// nil when there is no session.
+    func currentUser() async -> User? {
+        guard (try? await client.auth.session) != nil else { return nil }
+        if let fresh = try? await client.auth.user() { return fresh }
+        return try? await client.auth.session.user
+    }
+
     func upsertTasks(_ rows: [TaskDTO]) async throws {
         guard !rows.isEmpty else { return }
         try await client.from("tasks").upsert(rows).execute()

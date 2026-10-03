@@ -3,7 +3,7 @@ import SwiftUI
 
 @main
 struct FocusTimerApp: App {
-    /// Termination handling for the Live Activity (hides its buttons when the app is killed).
+    /// Termination handling for the Live Activity (ends the island when the app is killed).
     @UIApplicationDelegateAdaptor(AppLifecycle.self) private var lifecycle
     private let model: AppModel
 

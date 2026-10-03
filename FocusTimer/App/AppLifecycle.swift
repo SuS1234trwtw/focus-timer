@@ -2,10 +2,12 @@ import UIKit
 
 /// App-level lifecycle the SwiftUI scene phase doesn't cover: termination.
 ///
-/// When the app is killed (swiped away in the app switcher) the island stays, but its buttons would
-/// act on a dead app, so we push `appAlive = false` to hide them. iOS only tells a *running* app it's
-/// being terminated (a suspended one just dies), so on entering the background we ask for a short
-/// background task: a quick swipe-away right after leaving the app still reaches `applicationWillTerminate`.
+/// When the app is killed (swiped away in the app switcher) we END the island: nothing would drive its
+/// timer any more and its buttons would act on a dead app. iOS only tells a *running* app it's being
+/// terminated (a suspended one just dies), so on entering the background we ask for a short background
+/// task: a quick swipe-away right after leaving the app still reaches `applicationWillTerminate`.
+/// (An idle timer's island is already gone by then: going to the background refreshes it, and the
+/// policy ends it.)
 @MainActor
 final class AppLifecycle: NSObject, UIApplicationDelegate {
     /// How long to stay awake after entering the background (iOS allows roughly 30 seconds).
@@ -35,7 +37,7 @@ final class AppLifecycle: NSObject, UIApplicationDelegate {
     }
 
     func applicationWillTerminate(_ application: UIApplication) {
-        // Waits (bounded) for the island update, since the process ends when this returns.
+        // Waits (bounded) for the island to be ended, since the process ends when this returns.
         AppModel.shared.appWillTerminate()
         endBackgroundGrace()
     }

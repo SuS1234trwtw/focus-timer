@@ -23,6 +23,7 @@ struct SettingsSheet: View {
     @AppStorage(Feedback.Key.haptics) private var hapticsEnabled = true
     @AppStorage(Feedback.Key.tickSound) private var tickSound = true
     @AppStorage(Feedback.Key.tickHaptics) private var tickHaptics = true
+    @AppStorage(BootView.enabledKey) private var bootAnimation = true
 
     private struct Preset: Hashable {
         let focus: Int
@@ -40,6 +41,7 @@ struct SettingsSheet: View {
                 colorSection
                 feedbackSection
                 musicSection
+                AccountSettingsSection(palette: palette)
                 CalendarSettingsSection(palette: palette)
                 IslandSettingsSection(palette: palette)
                 islandSection
@@ -228,10 +230,11 @@ struct SettingsSheet: View {
                 .disabled(!soundsEnabled)
             Toggle("tick haptics", isOn: $tickHaptics)
                 .disabled(!hapticsEnabled)
+            Toggle("boot animation", isOn: $bootAnimation)
         } header: {
             header("feedback")
         } footer: {
-            Text("Clicks and beeps for start, pause, reset, tasks and settings, plus a tick every second while running. Haptic strength sets how hard the buzzes hit. Sounds follow the silent switch; the end-of-block chime doesn't.")
+            Text("Clicks and beeps for start, pause, reset, tasks and settings, plus a tick every second while running. Haptic strength sets how hard the buzzes hit. Sounds follow the silent switch; the end-of-block chime doesn't. Boot animation is the terminal start-up screen when the app opens.")
                 .font(palette.mono(11, relativeTo: .caption))
                 .foregroundStyle(palette.dim)
         }
@@ -375,7 +378,7 @@ struct SettingsSheet: View {
         } header: {
             header("island")
         } footer: {
-            Text("If the Dynamic Island doesn't appear, check this: \"turned off\" means iOS Settings → Focus → Live Activities; any red text is the exact reason iOS gave.")
+            Text("The Dynamic Island shows while a block is running or paused, and closes when the timer is idle or the app is closed. If it doesn't appear during a block: \"turned off\" means iOS Settings → Focus → Live Activities; any red text is the exact reason iOS gave. Restart only does something while a block is in use.")
                 .font(palette.mono(11, relativeTo: .caption))
                 .foregroundStyle(palette.dim)
         }
