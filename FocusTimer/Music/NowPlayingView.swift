@@ -37,7 +37,7 @@ struct NowPlayingView: View {
         .padding(14)
         .background(palette.surface.opacity(0.55), in: .rect(cornerRadius: palette.style.radius(10)))
         .overlay(RoundedRectangle(cornerRadius: palette.style.radius(10)).strokeBorder(palette.border, lineWidth: 1))
-        .animation(.easeInOut(duration: 0.25), value: spotify.track)
+        .animation(Motion.swap(), value: spotify.track)
     }
 
     private var artwork: some View {

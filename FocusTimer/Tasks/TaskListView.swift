@@ -4,6 +4,7 @@ import SwiftUI
 struct TaskListView: View {
     @Environment(\.modelContext) private var context
     @Environment(SyncCoordinator.self) private var sync
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let palette: Palette
     let tasks: [TaskItem]
@@ -63,7 +64,7 @@ struct TaskListView: View {
                 .dropDestination(for: String.self) { (items: [String], _: CGPoint) in
                     drop(items, before: task.id)
                 }
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .transition(Motion.reveal(reduceMotion: reduceMotion))
 
                 if task.id == lastOpenID {
                     // Drop here to move a task to the end of the open list.
@@ -120,12 +121,13 @@ struct TaskListView: View {
     }
 
     private func mutate(_ change: () -> Void) {
-        withAnimation(.easeOut(duration: 0.25)) { change() }
+        withAnimation(Motion.fast) { change() }
         sync.scheduleSync()
     }
 }
 
 private struct TaskRow: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let task: TaskItem
     let isActive: Bool
     let palette: Palette
@@ -147,6 +149,7 @@ private struct TaskRow: View {
                 HStack(spacing: 8) {
                     if isActive {
                         Text("▶").foregroundStyle(palette.accent)
+                            .transition(Motion.textSwap(reduceMotion: reduceMotion))
                     }
                     Text(task.title)
                         .foregroundStyle(task.isDone ? palette.dim : palette.text)
@@ -178,7 +181,7 @@ private struct TaskRow: View {
             RoundedRectangle(cornerRadius: palette.style.radius(8))
                 .strokeBorder(isActive ? palette.accent : palette.border, lineWidth: isActive ? 1.5 : 1)
         )
-        .animation(.snappy, value: isActive)
+        .animation(Motion.fast, value: isActive)
         .contextMenu {
             Button(isActive ? "Clear active" : "Set active", systemImage: "scope", action: onToggleActive)
             Button(task.isDone ? "Mark not done" : "Mark done", systemImage: "checkmark", action: onToggleDone)

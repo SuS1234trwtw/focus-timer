@@ -7,6 +7,7 @@ struct RootView: View {
     @Environment(SyncCoordinator.self) private var sync
     @Environment(SpotifyService.self) private var spotify
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let model = AppModel.shared
 
@@ -74,7 +75,7 @@ struct RootView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     if UpdateChecker.shared.showsBanner, let update = UpdateChecker.shared.available {
                         updateBanner(update)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
+                            .transition(Motion.reveal(reduceMotion: reduceMotion))
                     }
                     HeaderView(
                         palette: palette,
@@ -93,19 +94,21 @@ struct RootView: View {
                     )
                     if spotify.isConnected {
                         NowPlayingView(palette: palette)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
+                            .transition(Motion.reveal(reduceMotion: reduceMotion))
                     }
                     TaskListView(palette: palette, tasks: tasks, activeID: activeTask?.id)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
                 .padding(.bottom, 40)
+                .animation(Motion.fast, value: UpdateChecker.shared.showsBanner)
+                .animation(Motion.fast, value: spotify.isConnected)
             }
             .scrollDismissesKeyboard(.interactively)
         }
         .overlay {
             if showOnboarding {
-                OnboardingView { withAnimation(.easeOut(duration: 0.35)) { showOnboarding = false } }
+                OnboardingView { withAnimation(Motion.medium) { showOnboarding = false } }
                     .transition(.opacity)
             }
         }
@@ -116,8 +119,8 @@ struct RootView: View {
                     .transition(.identity)
             }
         }
-        .animation(.easeInOut(duration: 1.2), value: engine.mode)
-        .animation(.easeInOut(duration: 0.4), value: appearance)
+        .animation(Motion.swap(0.5), value: engine.mode)
+        .animation(Motion.swap(0.4), value: appearance)
         .preferredColorScheme(palette.isDark ? .dark : .light)
         .sheet(isPresented: $showSettings, onDismiss: { settingsPage = nil }) {
             SettingsSheet(palette: palette, initialPage: settingsPage)
@@ -143,7 +146,7 @@ struct RootView: View {
             // Settings → "run setup again" clears the flag.
             guard !done else { return }
             showSettings = false
-            withAnimation(.easeOut(duration: 0.35)) { showOnboarding = true }
+            withAnimation(Motion.slow) { showOnboarding = true }
         }
         .task { await runClock() }
         .task { await sync.syncNow() }
@@ -236,7 +239,7 @@ struct RootView: View {
             .accessibilityLabel("Update available: Focus \(update.version), build \(update.build). Opens settings.")
             Button {
                 Feedback.play(.tap)
-                withAnimation(.easeInOut(duration: 0.25)) { UpdateChecker.shared.dismissBanner() }
+                withAnimation(Motion.quick) { UpdateChecker.shared.dismissBanner() }
             } label: {
                 Text("[x]")
                     .frame(minWidth: 32, minHeight: 32)

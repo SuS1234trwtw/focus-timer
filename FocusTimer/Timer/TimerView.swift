@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TimerView: View {
     @Environment(PomodoroEngine.self) private var engine
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let palette: Palette
     let activeTaskTitle: String?
@@ -42,8 +43,8 @@ struct TimerView: View {
                 .foregroundStyle(palette.text)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
-                .contentTransition(.numericText(countsDown: true))
-                .animation(.snappy(duration: 0.3), value: engine.remaining.clockString)
+                .contentTransition(reduceMotion ? ContentTransition.opacity : .numericText(countsDown: true))
+                .animation(Motion.swap(0.15), value: engine.remaining.clockString)
                 .accessibilityLabel("\(Int(engine.remaining.rounded(.up)) / 60) minutes \(Int(engine.remaining.rounded(.up)) % 60) seconds remaining")
                 .accessibilityHint(canEditLength ? "double tap to change the timer length" : "")
                 .accessibilityAddTraits(canEditLength ? .isButton : [])
@@ -114,6 +115,7 @@ struct TimerView: View {
                 .accessibilityAddTraits(selected ? .isSelected : [])
             }
         }
+        .animation(Motion.swap(), value: engine.mode)
     }
 
     @ViewBuilder
@@ -200,7 +202,8 @@ private struct FlatButtonStyle: ButtonStyle {
             .background(filled ? palette.text : Color.clear)
             .overlay(Rectangle().strokeBorder(filled ? palette.text : palette.border, lineWidth: 1))
             .opacity(isEnabled ? 1 : 0.32)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+            // Press in fast, release softer.
+            .animation(configuration.isPressed ? Motion.quick : Motion.fast, value: configuration.isPressed)
     }
 }
 
@@ -217,7 +220,7 @@ private struct LineProgressBar: View {
                     .frame(width: max(0, (proxy.size.width - 4) * progress))
                     .padding(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .animation(.easeOut(duration: 0.4), value: progress)
+                    .animation(Motion.slow, value: progress)
             }
             .frame(height: 12)
             .overlay(Rectangle().strokeBorder(palette.border, lineWidth: 1))

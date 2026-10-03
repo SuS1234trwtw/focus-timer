@@ -51,7 +51,7 @@ struct AppearanceSettingsPage: View {
         let preview = style.basePalette(for: .focus)
         let selected = style == terminalStyle
         return Button {
-            withAnimation(.easeInOut(duration: 0.25)) { terminalStyle = style }
+            withAnimation(Motion.swap()) { terminalStyle = style }
         } label: {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 0) {
@@ -125,7 +125,7 @@ struct AppearanceSettingsPage: View {
             colorRow("break background", hex: $restBackgroundHex, fallback: terminalStyle.basePalette(for: .rest).background)
             if hasCustomColors {
                 Button("reset all colours", systemImage: "arrow.counterclockwise") {
-                    withAnimation(.easeInOut(duration: 0.25)) {
+                    withAnimation(Motion.swap()) {
                         focusAccentHex = ""
                         restAccentHex = ""
                         focusBackgroundHex = ""
@@ -156,7 +156,7 @@ struct AppearanceSettingsPage: View {
             ColorPicker(title, selection: color, supportsOpacity: false)
             if !hex.wrappedValue.isEmpty {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.25)) { hex.wrappedValue = "" }
+                    withAnimation(Motion.swap()) { hex.wrappedValue = "" }
                 } label: {
                     Image(systemName: "arrow.counterclockwise")
                         .foregroundStyle(palette.dim)

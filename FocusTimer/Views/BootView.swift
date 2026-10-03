@@ -56,7 +56,7 @@ struct BootView: View {
         .task { await runSequence() }
         .task(id: exiting) {
             guard exiting else { return }
-            withAnimation(.easeOut(duration: 0.35)) { hidden = true }
+            withAnimation(Motion.medium) { hidden = true }
             try? await Task.sleep(for: .milliseconds(350))
             finish()
         }
@@ -218,12 +218,12 @@ struct BootView: View {
         stage = "modules"
         let steps = BootScript.logSteps.count
         for index in 0..<steps {
-            withAnimation(.easeOut(duration: 0.12)) {
+            withAnimation(Motion.quick) {
                 shownLines = index + 1
                 progress = 0.1 + 0.74 * (Double(index) + 0.5) / Double(steps)
             }
             guard await pause(55) else { return }
-            withAnimation(.easeOut(duration: 0.12)) {
+            withAnimation(Motion.quick) {
                 doneLines = index + 1
                 progress = 0.1 + 0.74 * Double(index + 1) / Double(steps)
             }
@@ -233,7 +233,7 @@ struct BootView: View {
 
         // 3. the banner assembles over the dimmed log while the bar fills
         stage = "render"
-        withAnimation(.easeOut(duration: 0.2)) { bannerStart = .now }
+        withAnimation(Motion.fast) { bannerStart = .now }
         withAnimation(.linear(duration: Self.bannerDuration)) { progress = 1 }
         guard await pause(Int(Self.bannerDuration * 1000)) else { return }
         bannerDone = true

@@ -26,6 +26,7 @@ struct OnboardingView: View {
     let onDone: () -> Void
 
     @Environment(\.webAuthenticationSession) private var webAuthenticationSession
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @AppStorage(OnboardingGate.key) private var done = false
     @AppStorage("focusMinutes") private var focusMinutes = 25
@@ -154,8 +155,8 @@ struct OnboardingView: View {
         .foregroundStyle(palette.text)
         .tint(palette.accent)
         .preferredColorScheme(palette.isDark ? .dark : .light)
-        .animation(.easeInOut(duration: 0.4), value: appearance)
-        .animation(.easeInOut(duration: 0.25), value: page)
+        .animation(Motion.swap(0.4), value: appearance)
+        .animation(Motion.fast, value: page)
         .onChange(of: terminalStyle) { Feedback.play(.tap) }
         .onChange(of: [focusMinutes, restMinutes]) { Feedback.play(.tap) }
         .onChange(of: fontByStyle) { Feedback.play(.tap) }
@@ -356,7 +357,7 @@ struct OnboardingView: View {
         let preview = style.basePalette(for: .focus)
         let selected = style == terminalStyle
         return Button {
-            withAnimation(.easeInOut(duration: 0.25)) { terminalStyle = style }
+            withAnimation(Motion.swap()) { terminalStyle = style }
         } label: {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 0) {
@@ -434,7 +435,7 @@ struct OnboardingView: View {
     }
 
     private func setAccent(_ hex: String) {
-        withAnimation(.easeInOut(duration: 0.25)) {
+        withAnimation(Motion.swap()) {
             focusAccentHex = hex
             restAccentHex = ""
         }
@@ -682,11 +683,11 @@ struct OnboardingView: View {
                 ) { wantsSync = true }
                 if wantsSync {
                     card { AccountForm(palette: palette) }
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        .transition(Motion.reveal(reduceMotion: reduceMotion))
                 }
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: wantsSync)
+        .animation(Motion.fast, value: wantsSync)
     }
 
     private func choice(title: String, detail: String, icon: String, selected: Bool, action: @escaping () -> Void) -> some View {

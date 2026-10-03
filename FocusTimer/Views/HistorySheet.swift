@@ -7,6 +7,9 @@ struct HistorySheet: View {
     let palette: Palette
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The bars grow in once, the first time the chart shows.
+    @State private var barsGrown = false
     @Query(sort: \FocusSessionRecord.startedAt, order: .reverse) private var records: [FocusSessionRecord]
     @Query private var tasks: [TaskItem]
 
@@ -79,12 +82,20 @@ struct HistorySheet: View {
     }
 
     private func chart(_ series: [DayTotal]) -> some View {
-        Chart(series) { item in
-            BarMark(
-                x: .value("day", item.day, unit: .day),
-                y: .value("minutes", Double(item.seconds) / 60)
-            )
-            .foregroundStyle(palette.accent)
+        let grown = barsGrown || reduceMotion
+        let peak = series.map { Double($0.seconds) / 60 }.max() ?? 0
+        return Chart {
+            ForEach(series) { item in
+                BarMark(
+                    x: .value("day", item.day, unit: .day),
+                    y: .value("minutes", grown ? Double(item.seconds) / 60 : 0)
+                )
+                .foregroundStyle(palette.accent)
+            }
+            // Invisible: holds the y-axis at its final scale while the bars grow.
+            RuleMark(y: .value("minutes", peak))
+                .opacity(0)
+                .accessibilityHidden(true)
         }
         .chartXAxis {
             AxisMarks(values: .stride(by: .day)) { value in
@@ -107,6 +118,10 @@ struct HistorySheet: View {
         }
         .frame(height: 120)
         .accessibilityLabel("focus minutes, last 7 days")
+        .onAppear {
+            guard !barsGrown, !reduceMotion else { return }
+            withAnimation(Motion.slow) { barsGrown = true }
+        }
     }
 
     private func row(_ entry: HistoryEntry, title: String?, calendar: Calendar) -> some View {

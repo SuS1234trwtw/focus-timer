@@ -23,7 +23,7 @@ struct AccountSettingsSection: View {
                     Button {
                         Feedback.play(.tap)
                         account.clearMessage()
-                        withAnimation(.easeInOut(duration: 0.25)) { showForm = true }
+                        withAnimation(Motion.fast) { showForm = true }
                     } label: {
                         Label("set up backup & sync", systemImage: "person.badge.key")
                             .foregroundStyle(palette.accent)

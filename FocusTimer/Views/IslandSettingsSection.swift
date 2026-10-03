@@ -40,6 +40,7 @@ struct IslandSettingsSection: View {
             .padding(.leading, 16)
             .disabled(!enabled)
             .foregroundStyle(enabled ? palette.text : palette.dim)
+            .animation(Motion.swap(), value: enabled)
         } header: {
             Text(palette.style.sectionHeader(hasIsland ? "island buttons" : "lock screen buttons"))
                 .font(palette.mono(12, .bold, relativeTo: .caption))
