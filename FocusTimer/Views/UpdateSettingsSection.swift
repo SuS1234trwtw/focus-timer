@@ -7,6 +7,7 @@ struct UpdateSettingsSection: View {
     let palette: Palette
 
     @Environment(\.openURL) private var openURL
+    @AppStorage(UpdateChecker.Key.alerts) private var alerts = true
 
     private var checker: UpdateChecker { UpdateChecker.shared }
 
@@ -59,6 +60,7 @@ struct UpdateSettingsSection: View {
                 .contentShape(.rect)
             }
             .disabled(checker.isChecking)
+            Toggle("update alerts", isOn: $alerts)
             if let lastChecked = checker.lastChecked {
                 Text("last checked \(lastChecked.formatted(.relative(presentation: .named)))")
                     .font(palette.mono(11, relativeTo: .caption))
@@ -71,6 +73,7 @@ struct UpdateSettingsSection: View {
         } footer: {
             VStack(alignment: .leading, spacing: 4) {
                 Text("iPhones can't update apps by themselves. Install the new IPA with iloader, or add Focus to SideStore for one-tap updates.")
+                Text("The banner always shows in the app. Alerts are iOS notifications, sent when iOS lets Focus check in the background, which can be hours late.")
                 HStack(spacing: 0) {
                     Text("Guide: ")
                     Link("sus1234trwtw.github.io/install.html", destination: Self.guideURL)

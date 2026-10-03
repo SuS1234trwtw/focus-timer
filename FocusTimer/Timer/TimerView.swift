@@ -10,6 +10,28 @@ struct TimerView: View {
     let onReset: () -> Void
     let onSwitch: (TimerMode) -> Void
 
+    @State private var showLength = false
+    @AppStorage("timer.lengthHintLaunches") private var hintLaunches = 0
+    @AppStorage("timer.lengthHintSeen") private var hintSeen = false
+    /// Counts each app launch once, however often the view reappears.
+    @MainActor private static var countedThisLaunch = false
+
+    /// The length can change only before a block has started (not running, nothing paused mid-block).
+    nonisolated static func canEditLength(isRunning: Bool, segmentStartedAt: Date?) -> Bool {
+        !isRunning && segmentStartedAt == nil
+    }
+
+    private var canEditLength: Bool {
+        Self.canEditLength(isRunning: engine.isRunning, segmentStartedAt: engine.segmentStartedAt)
+    }
+
+    private func openLength() {
+        guard canEditLength else { return }
+        Feedback.play(.tap)
+        hintSeen = true
+        showLength = true
+    }
+
     var body: some View {
         VStack(spacing: 20) {
             modeTabs
@@ -23,6 +45,19 @@ struct TimerView: View {
                 .contentTransition(.numericText(countsDown: true))
                 .animation(.snappy(duration: 0.3), value: engine.remaining.clockString)
                 .accessibilityLabel("\(Int(engine.remaining.rounded(.up)) / 60) minutes \(Int(engine.remaining.rounded(.up)) % 60) seconds remaining")
+                .accessibilityHint(canEditLength ? "double tap to change the timer length" : "")
+                .accessibilityAddTraits(canEditLength ? .isButton : [])
+                .accessibilityAction { openLength() }
+                .contentShape(.rect)
+                .onTapGesture { openLength() }
+
+            if canEditLength && !hintSeen && hintLaunches <= 3 {
+                Text("tap to change")
+                    .font(palette.mono(11, relativeTo: .caption))
+                    .foregroundStyle(palette.dim.opacity(0.7))
+                    .padding(.top, -14)
+                    .accessibilityHidden(true)
+            }
 
             if palette.style.isFlat {
                 LineProgressBar(progress: engine.progress, palette: palette)
@@ -44,6 +79,14 @@ struct TimerView: View {
         .frame(maxWidth: .infinity)
         .background(palette.surface.opacity(0.55), in: .rect(cornerRadius: palette.style.radius(10)))
         .overlay(RoundedRectangle(cornerRadius: palette.style.radius(10)).strokeBorder(palette.border, lineWidth: 1))
+        .sheet(isPresented: $showLength) {
+            TimerLengthSheet(palette: palette)
+        }
+        .onAppear {
+            guard !Self.countedThisLaunch else { return }
+            Self.countedThisLaunch = true
+            hintLaunches += 1
+        }
     }
 
     private var focusLine: String {

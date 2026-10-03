@@ -34,8 +34,8 @@ targets:
       path: FocusTimer/Info.plist
       properties:
         CFBundleDisplayName: Focus
-        CFBundleShortVersionString: "1.9.2"
-        CFBundleVersion: "23"
+        CFBundleShortVersionString: "1.10.0"
+        CFBundleVersion: "24"
         ITSAppUsesNonExemptEncryption: false
         UILaunchScreen:
           UIColorName: LaunchBackground
@@ -44,6 +44,10 @@ targets:
           - UIInterfaceOrientationPortrait
         NSSupportsLiveActivities: true
         NSSupportsLiveActivitiesFrequentUpdates: false
+        UIBackgroundModes:
+          - fetch
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.focustimer.app.updatecheck
         CFBundleURLTypes:
           - CFBundleURLName: com.focustimer.app
             CFBundleURLSchemes:
@@ -72,8 +76,8 @@ targets:
       path: FocusWidgets/Info.plist
       properties:
         CFBundleDisplayName: Focus
-        CFBundleShortVersionString: "1.9.2"
-        CFBundleVersion: "23"
+        CFBundleShortVersionString: "1.10.0"
+        CFBundleVersion: "24"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:

@@ -71,6 +71,26 @@ struct UpdateCheckerTests {
         #expect(!UpdateChecker.isNewer(remoteBuild: "1.7.1", localBuild: "16"))
     }
 
+    @Test func foregroundThrottleIsFiveMinutes() {
+        #expect(UpdateChecker.checkInterval == 5 * 60)
+    }
+
+    @Test func shouldNotifyOncePerNewBuild() {
+        // New build, never notified: notify.
+        #expect(UpdateChecker.shouldNotify(latestBuild: 24, installedBuild: 23, notifiedBuild: nil, alertsOn: true))
+        // Newer than the last notified build: notify again.
+        #expect(UpdateChecker.shouldNotify(latestBuild: 25, installedBuild: 23, notifiedBuild: 24, alertsOn: true))
+        // Already notified for this build: once only.
+        #expect(!UpdateChecker.shouldNotify(latestBuild: 24, installedBuild: 23, notifiedBuild: 24, alertsOn: true))
+        #expect(!UpdateChecker.shouldNotify(latestBuild: 24, installedBuild: 23, notifiedBuild: 30, alertsOn: true))
+        // Installed or older builds: never.
+        #expect(!UpdateChecker.shouldNotify(latestBuild: 23, installedBuild: 23, notifiedBuild: nil, alertsOn: true))
+        #expect(!UpdateChecker.shouldNotify(latestBuild: 22, installedBuild: 23, notifiedBuild: nil, alertsOn: true))
+        // Alerts off: never.
+        #expect(!UpdateChecker.shouldNotify(latestBuild: 24, installedBuild: 23, notifiedBuild: nil, alertsOn: false))
+        #expect(!UpdateChecker.shouldNotify(latestBuild: 25, installedBuild: 23, notifiedBuild: 24, alertsOn: false))
+    }
+
     @Test func sideStoreURLEncodesSourceAndRoundTrips() throws {
         let url = UpdateChecker.sideStoreURL()
         #expect(url.scheme == "sidestore")

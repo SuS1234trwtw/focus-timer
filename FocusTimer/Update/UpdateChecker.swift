@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import UserNotifications
 
 /// Checks the GitHub "latest release" AltStore/SideStore source for a newer build.
 ///
@@ -20,6 +21,10 @@ final class UpdateChecker {
     enum Key {
         static let lastCheck = "update.lastCheck"
         static let dismissedBuild = "update.dismissedBuild"
+        /// Newest build an iOS notification was already posted for (or seen in the app).
+        static let notifiedBuild = "update.notifiedBuild"
+        /// Bool, default true: post an iOS notification when a background check finds a build.
+        static let alerts = "update.alerts"
     }
 
     /// Always serves the newest release's source file (GitHub redirects to the asset).
@@ -28,14 +33,19 @@ final class UpdateChecker {
     /// The app's bundle id inside the source; used to pick the right app if the source lists several.
     nonisolated static let bundleIdentifier = "com.focustimer.app"
 
-    /// Automatic checks run at most this often.
-    nonisolated static let checkInterval: TimeInterval = 6 * 60 * 60
+    /// Automatic foreground checks run at most this often.
+    nonisolated static let checkInterval: TimeInterval = 5 * 60
+
+    /// How often `checkLoop()` re-checks while the app is open.
+    nonisolated static let loopInterval: Duration = .seconds(15 * 60)
 
     private(set) var available: Update?
     private(set) var lastChecked: Date?
     private(set) var isChecking = false
     /// Build number whose banner the user closed; that build won't show the banner again.
     private(set) var dismissedBuild: Int?
+    /// Set when the user taps an update notification; RootView opens Settings → updates and resets it.
+    var openUpdatesRequested = false
 
     @ObservationIgnored private let defaults: UserDefaults
 
@@ -65,32 +75,86 @@ final class UpdateChecker {
         await checkNow()
     }
 
+    /// Checks now, then every `loopInterval` until the calling task is cancelled (run it in a `.task`).
+    func checkLoop() async {
+        while !Task.isCancelled {
+            await checkNow()
+            do { try await Task.sleep(for: Self.loopInterval) } catch { return }
+        }
+    }
+
     /// Fetches the source right away (ignoring the throttle).
     func checkNow() async {
         guard !isChecking else { return }
         isChecking = true
         defer { isChecking = false }
 
-        var request = URLRequest(url: Self.sourceURL, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 15)
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) { return }
-            guard let latest = Self.decodeLatest(from: data) else { return }
-            let now = Date.now
-            lastChecked = now
-            defaults.set(now, forKey: Key.lastCheck)
-            if Self.isNewer(remoteBuild: String(latest.build), localBuild: Self.localBuild) {
-                available = latest
-            } else {
-                available = nil
+        // Nil means offline, timed out, or a GitHub hiccup: stay quiet and try again next time.
+        guard let latest = await Self.fetchLatest() else { return }
+        let now = Date.now
+        lastChecked = now
+        defaults.set(now, forKey: Key.lastCheck)
+        if Self.isNewer(remoteBuild: String(latest.build), localBuild: Self.localBuild) {
+            available = latest
+            // Seen in the app already, so a background check won't notify about it again.
+            if latest.build > (defaults.object(forKey: Key.notifiedBuild) as? Int ?? 0) {
+                defaults.set(latest.build, forKey: Key.notifiedBuild)
             }
+        } else {
+            available = nil
+        }
+    }
+
+    /// Downloads and decodes the source; nil on any network or format error. Safe off the main actor.
+    nonisolated static func fetchLatest() async -> Update? {
+        var request = URLRequest(url: sourceURL, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 15)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        guard let result = try? await URLSession.shared.data(for: request) else { return nil }
+        let (data, response) = result
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) { return nil }
+        return decodeLatest(from: data)
+    }
+
+    // MARK: Background check
+
+    nonisolated static let notificationRoute = "updates"
+
+    /// Background-refresh work: if a new build is out and nobody was told yet, post one iOS notification.
+    /// Never asks for notification permission (that would prompt from the background); posts only if allowed.
+    nonisolated static func backgroundCheck() async {
+        guard let latest = await fetchLatest(), let installed = Int(localBuild) else { return }
+        let defaults = UserDefaults.standard
+        guard shouldNotify(
+            latestBuild: latest.build,
+            installedBuild: installed,
+            notifiedBuild: defaults.object(forKey: Key.notifiedBuild) as? Int,
+            alertsOn: defaults.object(forKey: Key.alerts) as? Bool ?? true
+        ), !Task.isCancelled else { return }
+
+        let center = UNUserNotificationCenter.current()
+        let status = await center.notificationSettings().authorizationStatus
+        guard status == .authorized || status == .provisional || status == .ephemeral else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Focus \(latest.version) (\(latest.build)) is out"
+        content.body = "tap to update"
+        content.sound = .default
+        content.userInfo = ["route": notificationRoute]
+        let request = UNNotificationRequest(identifier: "update.\(latest.build)", content: content, trigger: nil)
+        do {
+            try await center.add(request)
+            defaults.set(latest.build, forKey: Key.notifiedBuild)
         } catch {
-            // Offline, timed out, or GitHub hiccup: stay quiet and try again next time.
+            // Not posted: the next background run tries again.
         }
     }
 
     // MARK: Pure helpers (tested)
+
+    /// Notify once per build: only for a build newer than the installed one and than the last one notified, and only with alerts on.
+    nonisolated static func shouldNotify(latestBuild: Int, installedBuild: Int, notifiedBuild: Int?, alertsOn: Bool) -> Bool {
+        alertsOn && latestBuild > installedBuild && latestBuild > (notifiedBuild ?? Int.min)
+    }
 
     /// The installed build number (`CFBundleVersion`), e.g. "17".
     nonisolated static var localBuild: String {

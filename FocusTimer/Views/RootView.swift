@@ -24,6 +24,8 @@ struct RootView: View {
     @AppStorage("spotifyInIsland") private var spotifyInIsland = true
 
     @State private var showSettings = false
+    /// The page Settings opens on (e.g. updates, after tapping an update notification).
+    @State private var settingsPage: SettingsPage?
     @AppStorage(OnboardingGate.key) private var onboardingDone = false
     /// The setup guide: new installs, or "run setup again" in Settings.
     @State private var showOnboarding = false
@@ -117,7 +119,9 @@ struct RootView: View {
         .animation(.easeInOut(duration: 1.2), value: engine.mode)
         .animation(.easeInOut(duration: 0.4), value: appearance)
         .preferredColorScheme(palette.isDark ? .dark : .light)
-        .sheet(isPresented: $showSettings) { SettingsSheet(palette: palette) }
+        .sheet(isPresented: $showSettings, onDismiss: { settingsPage = nil }) {
+            SettingsSheet(palette: palette, initialPage: settingsPage)
+        }
         .onChange(of: [focusMinutes, restMinutes]) { _, minutes in
             guard !ProcessInfo.processInfo.arguments.contains("-fastTimer") else { return }
             engine.setDurations(PomodoroDurations(focusMinutes: minutes[0], restMinutes: minutes[1]))
@@ -139,6 +143,18 @@ struct RootView: View {
         }
         .task { await runClock() }
         .task { await sync.syncNow() }
+        .task(id: scenePhase == .active) {
+            // Looks for a new build on open and every 15 minutes while on screen, so the banner shows up fast.
+            guard scenePhase == .active else { return }
+            await UpdateChecker.shared.checkLoop()
+        }
+        .onChange(of: UpdateChecker.shared.openUpdatesRequested, initial: true) { _, requested in
+            // Tapped an "update is out" notification.
+            guard requested else { return }
+            UpdateChecker.shared.openUpdatesRequested = false
+            settingsPage = .updates
+            showSettings = true
+        }
         .task(id: spotify.isConnected && scenePhase == .active) {
             // Now-playing refreshes only while the app is on screen; iOS gives no background polling.
             guard spotify.isConnected, scenePhase == .active else { return }
@@ -203,6 +219,7 @@ struct RootView: View {
         HStack(spacing: 8) {
             Button {
                 Feedback.play(.tap)
+                settingsPage = .updates
                 showSettings = true
             } label: {
                 Text("> update available: focus \(update.version) (\(update.build))")
