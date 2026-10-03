@@ -651,7 +651,7 @@ struct OnboardingView: View {
                     Text("sync isn't set up in this build, so everything stays on this iPhone.")
                         .foregroundStyle(palette.dim)
                 }
-            } else if !account.isGuest && !account.needsPassword {
+            } else if !account.isGuest {
                 card {
                     Label("signed in as \(account.email ?? "?")", systemImage: "checkmark.circle")
                         .foregroundStyle(palette.accent)

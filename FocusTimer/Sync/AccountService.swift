@@ -2,16 +2,24 @@ import Foundation
 import Observation
 import Supabase
 
-/// Optional email account on top of the anonymous (guest) Supabase user.
+/// Optional email account on top of the anonymous (guest) Supabase user, signed in with a 6-digit code.
 ///
 /// Everyone starts as a guest: an anonymous user whose rows are backed up but only reachable from
-/// this install. Creating an account upgrades that same user in place (same id, so every synced row
-/// stays). Logging in to an existing account on another device downloads its rows and uploads the
-/// guest's local rows under it. Signing out goes back to a fresh guest and keeps the local data.
+/// this install. Creating an account emails a code and, once it's typed in, upgrades that same user in
+/// place (same id, so every synced row stays). Logging in on another device emails a code too, then
+/// downloads the account's rows and uploads the guest's local rows under it. No passwords, no links.
+/// Signing out goes back to a fresh guest and keeps the local data.
 @MainActor
 @Observable
 final class AccountService {
     static let shared = AccountService(sync: AppModel.shared.sync)
+
+    enum Mode: String, CaseIterable, Identifiable, Sendable {
+        case create, logIn
+
+        var id: String { rawValue }
+        var label: String { self == .create ? "create account" : "log in" }
+    }
 
     /// Supabase is configured in this build (otherwise the app is local-only).
     var isAvailable: Bool { service != nil }
@@ -19,28 +27,26 @@ final class AccountService {
     private(set) var isGuest = true
     /// The account's email when signed in.
     private(set) var email: String?
-    /// An email waiting to be confirmed from the inbox (create account, step one).
+    /// The email a code was sent to and is waiting to be typed in. Survives closing the app.
     private(set) var pendingEmail: String?
-    /// The email is confirmed but the password still has to be set (the app was closed in between).
-    private(set) var needsPassword = false
+    /// What the pending code is for.
+    private(set) var pendingMode: Mode = .create
+    /// When the last code went out, for the resend cooldown.
+    private(set) var codeSentAt: Date?
     private(set) var busy = false
     /// A one-line status for the form: an error or what to do next.
     private(set) var message: String?
     /// `message` is a problem rather than progress.
     private(set) var messageIsError = false
 
+    /// Seconds between codes, so the inbox (and Supabase's email limit) isn't flooded.
+    static let resendCooldown: TimeInterval = 60
+
     @ObservationIgnored private let sync: SyncCoordinator?
     @ObservationIgnored private let defaults: UserDefaults
-    /// The password chosen while the email confirmation is pending. Memory only, never stored.
-    @ObservationIgnored private var pendingPassword: String?
 
     private static let pendingEmailKey = "account.pendingEmail"
-    /// Where the confirmation link lands after Supabase verifies the email: a website page that opens
-    /// the app (`focustimer://account-confirmed`). Must be in Supabase → Auth → URL Configuration → Redirect URLs,
-    /// otherwise Supabase falls back to the project's Site URL.
-    static let confirmedURL = URL(string: "https://sus1234trwtw.github.io/confirmed.html")!
-    /// The link the confirmed page opens to bring people back into the app.
-    static let confirmedDeepLinkHost = "account-confirmed"
+    private static let pendingModeKey = "account.pendingMode"
 
     private var service: SupabaseService? { sync?.supabase }
     private var auth: AuthClient? { service?.client.auth }
@@ -49,12 +55,13 @@ final class AccountService {
         self.sync = sync
         self.defaults = defaults
         pendingEmail = defaults.string(forKey: Self.pendingEmailKey)
+        pendingMode = defaults.string(forKey: Self.pendingModeKey).flatMap(Mode.init(rawValue:)) ?? .create
         Task { await refresh() }
     }
 
     // MARK: State
 
-    /// Re-reads the signed-in user from the server. Finishes a pending sign-up once its email is confirmed.
+    /// Re-reads the signed-in user from the server.
     func refresh() async {
         guard let service else { return }
         guard let user = await service.currentUser() else {
@@ -63,13 +70,8 @@ final class AccountService {
             return
         }
         apply(user)
-        if let pending = pendingEmail, !busy, !isGuest, email?.lowercased() == pending.lowercased() {
-            // Email confirmed in the browser: the password can be set now.
-            if let password = pendingPassword {
-                await finishSignUp(password: password)
-            } else {
-                needsPassword = true
-            }
+        if !isGuest, let pending = pendingEmail, email?.lowercased() == pending.lowercased() {
+            clearPending()  // already finished
         }
     }
 
@@ -79,84 +81,85 @@ final class AccountService {
         email = isGuest ? nil : address
     }
 
+    /// Seconds left before another code may be sent (0 when it can be sent now).
+    func resendWait(now: Date = .now) -> Int {
+        guard let codeSentAt else { return 0 }
+        return max(0, Int((Self.resendCooldown - now.timeIntervalSince(codeSentAt)).rounded(.up)))
+    }
+
     // MARK: Actions
 
-    /// Turns the current guest into an account with this email and password, keeping its id and data.
-    /// When the project asks for email confirmation, the password is set once the email is confirmed.
-    func createAccount(email rawEmail: String, password: String) async {
+    /// Emails a 6-digit code. `.create` turns this guest into an account; `.logIn` signs in to an existing one.
+    func sendCode(email rawEmail: String, mode: Mode) async {
         let email = Self.clean(rawEmail)
-        if let problem = Self.validate(email: email, password: password) { return fail(problem) }
+        if let problem = Self.validate(email: email) { return fail(problem) }
         guard let service, let auth else { return fail("sync isn't set up in this build") }
+        guard !busy else { return }
+        if pendingEmail == email, resendWait() > 0 { return fail("wait \(resendWait())s before sending another code") }
+        busy = true
+        defer { busy = false }
+        clearMessage()
+
+        do {
+            switch mode {
+            case .create:
+                try await service.ensureSignedIn()
+                // Adding an email to the anonymous user sends the "Change Email Address" email with the code.
+                let user = try await auth.update(user: UserAttributes(email: email))
+                apply(user)
+                if !isGuest, self.email?.lowercased() == email {
+                    // The project confirms emails automatically: no code needed.
+                    clearPending()
+                    return say("backup & sync is on for \(email)")
+                }
+            case .logIn:
+                // Only existing accounts: a typo shouldn't quietly create a new, empty one.
+                try await auth.signInWithOTP(email: email, shouldCreateUser: false)
+            }
+            setPending(email, mode: mode)
+            say("code sent to \(email). it can take a minute; check spam too")
+        } catch {
+            fail(Self.explain(error))
+        }
+    }
+
+    /// Checks the 6-digit code from the email and finishes creating the account or logging in.
+    func verify(code rawCode: String) async {
+        let code = rawCode.filter(\.isNumber)
+        if let problem = Self.validate(code: code) { return fail(problem) }
+        guard let auth, let sync, let email = pendingEmail else { return fail("send a code first") }
         guard !busy else { return }
         busy = true
         defer { busy = false }
         clearMessage()
 
         do {
-            try await service.ensureSignedIn()
-            // Supabase won't give an anonymous user a password before it has an email, so: email first.
-            let user = try await auth.update(user: UserAttributes(email: email), redirectTo: Self.confirmedURL)
-            apply(user)
-            if !isGuest, self.email?.lowercased() == email.lowercased() {
-                // Confirmed straight away (email confirmation is off).
-                _ = try await auth.update(user: UserAttributes(password: password))
+            switch pendingMode {
+            case .create:
+                let response = try await auth.verifyOTP(email: email, token: code, type: .emailChange)
+                apply(response.user)
                 clearPending()
+                await refresh()
                 say("backup & sync is on for \(email)")
-            } else {
-                pendingEmail = email
-                pendingPassword = password
-                defaults.set(email, forKey: Self.pendingEmailKey)
-                say("check your inbox to confirm \(email), then come back here")
+            case .logIn:
+                await sync.waitUntilIdle()
+                let response = try await auth.verifyOTP(email: email, token: code, type: .email)
+                apply(response.user)
+                clearPending()
+                await sync.adoptLocalData()
+                sync.resetPullCursor()
+                await sync.syncNow()
+                say("logged in as \(email)")
             }
         } catch {
             fail(Self.explain(error))
         }
     }
 
-    /// Sets the password after the email was confirmed (when the app was closed in between).
-    func setPassword(_ password: String) async {
-        if password.count < 8 { return fail("password needs at least 8 characters") }
-        guard !busy else { return }
-        busy = true
-        defer { busy = false }
+    /// Drops the pending code to start over with another email.
+    func cancelCode() {
+        clearPending()
         clearMessage()
-        await finishSignUp(password: password)
-    }
-
-    private func finishSignUp(password: String) async {
-        guard let auth else { return }
-        do {
-            _ = try await auth.update(user: UserAttributes(password: password))
-            let address = email ?? pendingEmail ?? ""
-            clearPending()
-            say("backup & sync is on for \(address)")
-        } catch {
-            fail(Self.explain(error))
-        }
-    }
-
-    /// Logs in to an existing account: downloads its data and uploads this device's guest data under it.
-    func logIn(email rawEmail: String, password: String) async {
-        let email = Self.clean(rawEmail)
-        if let problem = Self.validate(email: email, password: password) { return fail(problem) }
-        guard let auth, let sync else { return fail("sync isn't set up in this build") }
-        guard !busy else { return }
-        busy = true
-        defer { busy = false }
-        clearMessage()
-
-        await sync.waitUntilIdle()
-        do {
-            let session = try await auth.signIn(email: email, password: password)
-            apply(session.user)
-            clearPending()
-            await sync.adoptLocalData()
-            sync.resetPullCursor()
-            await sync.syncNow()
-            say("logged in as \(email)")
-        } catch {
-            fail(Self.explain(error))
-        }
     }
 
     /// Back to a guest. Local tasks stay on this device; the account keeps its copy.
@@ -188,11 +191,19 @@ final class AccountService {
         messageIsError = false
     }
 
+    private func setPending(_ email: String, mode: Mode) {
+        pendingEmail = email
+        pendingMode = mode
+        codeSentAt = .now
+        defaults.set(email, forKey: Self.pendingEmailKey)
+        defaults.set(mode.rawValue, forKey: Self.pendingModeKey)
+    }
+
     private func clearPending() {
         pendingEmail = nil
-        pendingPassword = nil
-        needsPassword = false
+        codeSentAt = nil
         defaults.removeObject(forKey: Self.pendingEmailKey)
+        defaults.removeObject(forKey: Self.pendingModeKey)
     }
 
     private func say(_ text: String) {
@@ -211,16 +222,20 @@ final class AccountService {
         email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
-    /// Nil when the email and password are usable, otherwise what to fix.
-    nonisolated static func validate(email: String, password: String) -> String? {
+    /// Nil when the email is usable, otherwise what to fix.
+    nonisolated static func validate(email: String) -> String? {
         let email = clean(email)
         guard !email.isEmpty else { return "enter your email" }
         let parts = email.split(separator: "@", omittingEmptySubsequences: false)
         guard parts.count == 2, !parts[0].isEmpty, parts[1].contains("."),
               !parts[1].hasPrefix("."), !parts[1].hasSuffix("."), !email.contains(" ")
         else { return "that email doesn't look right" }
-        guard password.count >= 8 else { return "password needs at least 8 characters" }
         return nil
+    }
+
+    /// Nil when the code is exactly six digits, otherwise what to fix.
+    nonisolated static func validate(code: String) -> String? {
+        code.count == 6 && code.allSatisfy { $0.isASCII && $0.isNumber } ? nil : "the code is 6 digits"
     }
 
     /// A short, readable reason for an auth failure.
@@ -242,17 +257,14 @@ final class AccountService {
         let text = raw.lowercased()
         func has(_ needles: String...) -> Bool { needles.contains { text.contains($0) } }
 
-        if has("invalid_credentials", "invalid login credentials", "invalid email or password") {
-            return "wrong email or password"
+        if has("otp_expired", "token has expired or is invalid", "invalid otp", "otp has expired") {
+            return "wrong or expired code. check it, or send a new one"
         }
-        if has("email_not_confirmed", "email not confirmed") {
-            return "confirm your email first: open the link in your inbox, then log in"
+        if has("signups not allowed for otp", "otp_disabled", "user not found", "user_not_found") {
+            return "no account with that email yet. create one instead"
         }
         if has("email_exists", "user_already_exists", "already registered", "already been registered", "already exists") {
             return "that email already has an account. log in instead"
-        }
-        if has("weak_password", "password should", "password is too weak", "weak password") {
-            return "pick a stronger password: at least 8 characters, mix letters and numbers"
         }
         if has("email_address_invalid", "invalid email", "unable to validate email", "email address is invalid") {
             return "that email doesn't look right"
@@ -266,15 +278,12 @@ final class AccountService {
         if has("anonymous_provider_disabled", "anonymous sign-ins are disabled") {
             return "guest sign-in is turned off on the server"
         }
-        if has("same_password", "should be different from the old password") {
-            return "that's already your password"
-        }
         if has("offline", "not connected to the internet", "network connection was lost", "timed out",
                "could not connect", "nsurlerrordomain") {
             return "you're offline. try again when connected"
         }
         if has("session_not_found", "sessionmissing", "session missing", "auth session missing") {
-            return "your session ran out. log in again"
+            return "your session ran out. send a new code"
         }
         let short = raw.trimmingCharacters(in: .whitespacesAndNewlines).prefix(120)
         return short.isEmpty ? "something went wrong" : "couldn't do that: \(short)"

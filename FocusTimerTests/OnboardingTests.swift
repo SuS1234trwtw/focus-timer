@@ -62,31 +62,41 @@ struct OnboardingGateTests {
 }
 
 struct AccountValidationTests {
-    @Test func acceptsAGoodEmailAndPassword() {
-        #expect(AccountService.validate(email: "me@example.com", password: "longenough") == nil)
+    @Test func acceptsAGoodEmail() {
+        #expect(AccountService.validate(email: "me@example.com") == nil)
     }
 
     @Test func trimsAndIgnoresCase() {
-        #expect(AccountService.validate(email: "  Me@Example.COM \n", password: "12345678") == nil)
+        #expect(AccountService.validate(email: "  Me@Example.COM \n") == nil)
         #expect(AccountService.clean("  Me@Example.COM ") == "me@example.com")
     }
 
     @Test(arguments: ["", "   ", "me", "me@", "@example.com", "me@example", "me@@example.com", "me@.com", "me@example.", "m e@example.com"])
     func rejectsBadEmails(email: String) {
-        #expect(AccountService.validate(email: email, password: "longenough") != nil)
+        #expect(AccountService.validate(email: email) != nil)
     }
 
-    @Test(arguments: ["", "short", "1234567"])
-    func rejectsShortPasswords(password: String) {
-        #expect(AccountService.validate(email: "me@example.com", password: password) == "password needs at least 8 characters")
+    @Test func acceptsSixDigitCodes() {
+        #expect(AccountService.validate(code: "123456") == nil)
+        #expect(AccountService.validate(code: "000000") == nil)
+    }
+
+    @Test(arguments: ["", "12345", "1234567", "12a456", "12 456", "١٢٣٤٥٦"])
+    func rejectsOtherCodes(code: String) {
+        #expect(AccountService.validate(code: code) == "the code is 6 digits")
     }
 
     @Test func explainsCommonAuthErrors() {
-        #expect(AccountService.explain(text: "api(message: \"Invalid login credentials\", errorCode: invalid_credentials)") == "wrong email or password")
+        #expect(AccountService.explain(text: "api(message: \"Token has expired or is invalid\", errorCode: otp_expired)").contains("code"))
+        #expect(AccountService.explain(text: "Signups not allowed for otp").contains("create one"))
         #expect(AccountService.explain(text: "errorCode: email_exists").contains("log in"))
         #expect(AccountService.explain(text: "User already registered").contains("log in"))
-        #expect(AccountService.explain(text: "weak_password").contains("stronger"))
         #expect(AccountService.explain(text: "over_email_send_rate_limit").contains("too many"))
         #expect(AccountService.explain(URLError(.notConnectedToInternet)).contains("offline"))
+    }
+
+    @MainActor @Test func noCooldownBeforeAnyCode() {
+        let service = AccountService(sync: nil, defaults: UserDefaults(suiteName: "AccountTests.\(UUID())")!)
+        #expect(service.resendWait() == 0)
     }
 }

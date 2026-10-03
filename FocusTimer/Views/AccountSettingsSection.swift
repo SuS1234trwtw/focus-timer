@@ -15,9 +15,6 @@ struct AccountSettingsSection: View {
             if !account.isAvailable {
                 Text("sync isn't set up in this build, so everything stays on this iPhone.")
                     .foregroundStyle(palette.dim)
-            } else if account.needsPassword {
-                LabeledContent("account", value: account.email ?? account.pendingEmail ?? "?")
-                AccountForm(palette: palette)
             } else if account.isGuest {
                 LabeledContent("account", value: "guest")
                 if showForm || account.pendingEmail != nil {
@@ -57,7 +54,7 @@ struct AccountSettingsSection: View {
                 .font(palette.mono(12, .bold, relativeTo: .caption))
                 .foregroundStyle(palette.accent)
         } footer: {
-            Text("As a guest, tasks live on this iPhone and only this install can reach its backup. With an account, they sync to every iPhone and iPad running Focus. Signing out keeps your tasks here.")
+            Text("As a guest, tasks live on this iPhone and only this install can reach its backup. With an account, they sync to every iPhone and iPad running Focus. You sign in with a 6-digit code sent to your email: no password. Signing out keeps your tasks here.")
                 .font(palette.mono(11, relativeTo: .caption))
                 .foregroundStyle(palette.dim)
         }
@@ -71,7 +68,7 @@ struct AccountSettingsSection: View {
                 Task { await account.signOut() }
             }
         } message: {
-            Text("Your tasks stay on this iPhone. Log in again any time to sync.")
+            Text("Your tasks stay on this iPhone. Log in again any time with a code to sync.")
         }
     }
 
@@ -84,58 +81,26 @@ struct AccountSettingsSection: View {
     }
 }
 
-/// Create an account or log in: email, password, submit. Used in Settings and in the setup guide.
+/// Create an account or log in with a 6-digit email code: email first, then the code.
+/// Used in Settings and in the setup guide.
 struct AccountForm: View {
     let palette: Palette
 
-    enum Mode: String, CaseIterable, Identifiable {
-        case create, logIn
-
-        var id: String { rawValue }
-        var label: String { self == .create ? "create account" : "log in" }
-    }
-
-    @State private var mode: Mode = .create
+    @State private var mode: AccountService.Mode = .create
     @State private var email = ""
-    @State private var password = ""
+    @State private var code = ""
     @FocusState private var focused: Field?
 
-    private enum Field { case email, password }
+    private enum Field { case email, code }
 
     private var account: AccountService { AccountService.shared }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if account.needsPassword {
-                finishSetup
+            if let pending = account.pendingEmail {
+                codeStep(pending)
             } else {
-                if let pending = account.pendingEmail, account.isGuest {
-                    pendingNotice(pending)
-                }
-                Picker("account", selection: $mode) {
-                    ForEach(Mode.allCases) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-
-                field {
-                    TextField("email", text: $email)
-                        .keyboardType(.emailAddress)
-                        .textContentType(.emailAddress)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .submitLabel(.next)
-                        .focused($focused, equals: .email)
-                        .onSubmit { focused = .password }
-                }
-                field {
-                    SecureField("password (8+ characters)", text: $password)
-                        .textContentType(mode == .create ? .newPassword : .password)
-                        .submitLabel(.go)
-                        .focused($focused, equals: .password)
-                        .onSubmit(submit)
-                }
-                submitButton(mode.label, action: submit)
+                emailStep
             }
             if let message = account.message {
                 Text(message)
@@ -143,9 +108,10 @@ struct AccountForm: View {
                     .foregroundStyle(account.messageIsError ? Color(hex: 0xE0786A) : palette.dim)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Text("sync works on every iPhone and iPad running Focus.")
+            Text("no password: we email you a 6-digit code. sync works on every iPhone and iPad running Focus.")
                 .font(palette.mono(11, relativeTo: .caption))
                 .foregroundStyle(palette.dim)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .font(palette.mono(15, relativeTo: .body))
         .padding(.vertical, 4)
@@ -155,41 +121,82 @@ struct AccountForm: View {
         }
     }
 
-    // MARK: Pieces
+    // MARK: Steps
 
-    private var finishSetup: some View {
+    private var emailStep: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("email confirmed. choose your password to finish.")
-                .foregroundStyle(palette.text)
-                .fixedSize(horizontal: false, vertical: true)
-            field {
-                SecureField("password (8+ characters)", text: $password)
-                    .textContentType(.newPassword)
-                    .submitLabel(.go)
-                    .onSubmit(setPassword)
+            Picker("account", selection: $mode) {
+                ForEach(AccountService.Mode.allCases) { Text($0.label).tag($0) }
             }
-            submitButton("set password", action: setPassword)
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            field {
+                TextField("email", text: $email)
+                    .keyboardType(.emailAddress)
+                    .textContentType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .submitLabel(.send)
+                    .focused($focused, equals: .email)
+                    .onSubmit(sendCode)
+            }
+            submitButton("send code", action: sendCode)
         }
     }
 
-    private func pendingNotice(_ pending: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("waiting for you to confirm \(pending). open the link in that email, then tap below.")
-                .font(palette.mono(13, relativeTo: .footnote))
+    private func codeStep(_ pending: String) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("enter the 6-digit code sent to \(pending)")
                 .foregroundStyle(palette.text)
                 .fixedSize(horizontal: false, vertical: true)
-            Button {
-                Feedback.play(.tap)
-                Task { await account.refresh() }
-            } label: {
-                Label("i confirmed it", systemImage: "checkmark.circle")
-                    .font(palette.mono(13, .bold, relativeTo: .footnote))
-                    .foregroundStyle(palette.accent)
+
+            field {
+                TextField("000000", text: $code)
+                    .keyboardType(.numberPad)
+                    // iOS offers the code from Mail right above the keyboard.
+                    .textContentType(.oneTimeCode)
+                    .font(palette.mono(28, .bold, relativeTo: .title))
+                    .tracking(8)
+                    .multilineTextAlignment(.center)
+                    .focused($focused, equals: .code)
+                    .onChange(of: code) { _, new in
+                        let digits = String(new.filter(\.isNumber).prefix(6))
+                        if digits != new { code = digits }
+                        // Paste or autofill: submit as soon as all six digits are in.
+                        if digits.count == 6, !account.busy { verify() }
+                    }
             }
+            submitButton(account.pendingMode == .create ? "create account" : "log in", action: verify)
+
+            HStack {
+                // Re-renders every second while the cooldown runs.
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    let wait = account.resendWait(now: context.date)
+                    Button(wait > 0 ? "resend code (\(wait)s)" : "resend code") {
+                        Feedback.play(.tap)
+                        code = ""
+                        Task { await account.sendCode(email: pending, mode: account.pendingMode) }
+                    }
+                    .disabled(wait > 0 || account.busy)
+                }
+                Spacer()
+                Button("use a different email") {
+                    Feedback.play(.tap)
+                    code = ""
+                    email = pending
+                    account.cancelCode()
+                }
+                .disabled(account.busy)
+            }
+            .font(palette.mono(12, relativeTo: .footnote))
+            .foregroundStyle(palette.accent)
             .buttonStyle(.plain)
-            .disabled(account.busy)
         }
+        .onAppear { focused = .code }
     }
+
+    // MARK: Pieces
 
     private func field<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         content()
@@ -225,26 +232,23 @@ struct AccountForm: View {
 
     // MARK: Actions
 
-    private func submit() {
+    private func sendCode() {
         Feedback.play(.tap)
         focused = nil
         let email = email
-        let password = password
+        let mode = mode
         Task {
-            switch mode {
-            case .create: await account.createAccount(email: email, password: password)
-            case .logIn: await account.logIn(email: email, password: password)
-            }
-            if !account.messageIsError { self.password = "" }
+            await account.sendCode(email: email, mode: mode)
+            if account.pendingEmail != nil { focused = .code }
         }
     }
 
-    private func setPassword() {
+    private func verify() {
         Feedback.play(.tap)
-        let password = password
+        let code = code
         Task {
-            await account.setPassword(password)
-            if !account.messageIsError { self.password = "" }
+            await account.verify(code: code)
+            if account.messageIsError { self.code = "" }
         }
     }
 }
