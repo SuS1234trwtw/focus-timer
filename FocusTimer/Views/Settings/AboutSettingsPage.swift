@@ -36,7 +36,7 @@ struct AboutSettingsPage: View {
             Section {
                 linkRow("privacy policy", FocusLinks.privacy)
                 linkRow("terms of service", FocusLinks.terms)
-                linkRow("MIT license", FocusLinks.license)
+                linkRow("license", FocusLinks.license)
             } header: {
                 header("legal")
             }
@@ -83,7 +83,7 @@ struct AboutSettingsPage: View {
             } header: {
                 header("contact")
             } footer: {
-                Text("© 2026 An Le · open source under the MIT License. not affiliated with Apple, Google or Spotify.")
+                Text("© 2026 An Le aka アン, 51 · all rights reserved. not affiliated with Apple, Google or Spotify.")
                     .font(palette.mono(11, relativeTo: .caption))
                     .foregroundStyle(palette.dim)
             }

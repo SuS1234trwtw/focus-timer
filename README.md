@@ -11,7 +11,7 @@
   <a href="https://github.com/SuS1234trwtw/focus-timer/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/SuS1234trwtw/focus-timer?style=flat-square&label=download&color=f5f5f2&labelColor=050505"></a>
   <a href="https://sus1234trwtw.github.io/install.html"><img alt="Install guide" src="https://img.shields.io/badge/install-step--by--step-f5f5f2?style=flat-square&labelColor=050505"></a>
   <img alt="iOS 26+" src="https://img.shields.io/badge/iOS-26%2B-f5f5f2?style=flat-square&labelColor=050505">
-  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-f5f5f2?style=flat-square&labelColor=050505"></a>
+  <a href="LICENSE"><img alt="All rights reserved" src="https://img.shields.io/badge/license-all%20rights%20reserved-f5f5f2?style=flat-square&labelColor=050505"></a>
 </p>
 
 <p align="center">
@@ -93,7 +93,7 @@ https://github.com/SuS1234trwtw/focus-timer/releases/latest/download/source.json
 
 ## License
 
-Focus is open source under the [MIT License](LICENSE). Bundled fonts are downloaded at build time and stay under their own licenses (SIL Open Font License, Ubuntu Font Licence, Apache 2.0).
+Copyright © 2026 An Le. All rights reserved: the code is public to read, not to copy or reuse ([LICENSE](LICENSE)). Bundled fonts are downloaded at build time and stay under their own licenses (SIL Open Font License, Ubuntu Font Licence, Apache 2.0).
 
 Website, privacy policy and terms: https://sus1234trwtw.github.io/
 

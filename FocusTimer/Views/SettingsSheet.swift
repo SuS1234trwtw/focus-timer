@@ -97,9 +97,6 @@ struct SettingsSheet: View {
                     .font(palette.mono(15, .bold, relativeTo: .body))
                     .foregroundStyle(palette.accent)
                     .textSelection(.enabled)
-                Text("by An Le aka アン, 51")
-                    .font(palette.mono(12, relativeTo: .caption))
-                    .foregroundStyle(palette.dim)
                 updateLine
                     .padding(.top, 4)
             }
