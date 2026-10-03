@@ -35,6 +35,12 @@ final class AccountService {
     @ObservationIgnored private var pendingPassword: String?
 
     private static let pendingEmailKey = "account.pendingEmail"
+    /// Where the confirmation link lands after Supabase verifies the email: a website page that opens
+    /// the app (`focustimer://account-confirmed`). Must be in Supabase → Auth → URL Configuration → Redirect URLs,
+    /// otherwise Supabase falls back to the project's Site URL.
+    static let confirmedURL = URL(string: "https://sus1234trwtw.github.io/confirmed.html")!
+    /// The link the confirmed page opens to bring people back into the app.
+    static let confirmedDeepLinkHost = "account-confirmed"
 
     private var service: SupabaseService? { sync?.supabase }
     private var auth: AuthClient? { service?.client.auth }
@@ -89,7 +95,7 @@ final class AccountService {
         do {
             try await service.ensureSignedIn()
             // Supabase won't give an anonymous user a password before it has an email, so: email first.
-            let user = try await auth.update(user: UserAttributes(email: email))
+            let user = try await auth.update(user: UserAttributes(email: email), redirectTo: Self.confirmedURL)
             apply(user)
             if !isGuest, self.email?.lowercased() == email.lowercased() {
                 // Confirmed straight away (email confirmation is off).

@@ -137,6 +137,11 @@ struct RootView: View {
             showSettings = false
             withAnimation(.easeOut(duration: 0.35)) { showOnboarding = true }
         }
+        .onOpenURL { url in
+            // The website's "email confirmed" page sends people back here to finish creating the account.
+            guard url.scheme == "focustimer", url.host == AccountService.confirmedDeepLinkHost else { return }
+            Task { await AccountService.shared.refresh() }
+        }
         .task { await runClock() }
         .task { await sync.syncNow() }
         .task(id: spotify.isConnected && scenePhase == .active) {
@@ -178,6 +183,8 @@ struct RootView: View {
                 if let segment = engine.tick() { model.finish(segment) }
                 model.refreshLiveActivity()
                 Task { await sync.syncNow() }
+                // Back from confirming the account email in the browser: finish the sign-up.
+                if AccountService.shared.pendingEmail != nil { Task { await AccountService.shared.refresh() } }
             case .inactive, .background:
                 model.isAppActive = false
                 model.refreshLiveActivity()
