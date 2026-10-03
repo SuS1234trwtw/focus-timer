@@ -12,6 +12,8 @@ final class TaskItem {
     /// Tombstone: deleted locally, kept until the deletion has been pushed.
     var deletedAt: Date?
     var needsSync: Bool
+    /// User-defined order; lowest first (see `TaskOrdering`). Defaulted for lightweight migration.
+    var sortIndex: Double = 0
 
     init(
         id: UUID = UUID(),
@@ -21,7 +23,8 @@ final class TaskItem {
         createdAt: Date = .now,
         updatedAt: Date = .now,
         deletedAt: Date? = nil,
-        needsSync: Bool = true
+        needsSync: Bool = true,
+        sortIndex: Double = 0
     ) {
         self.id = id
         self.title = title
@@ -31,6 +34,7 @@ final class TaskItem {
         self.updatedAt = updatedAt
         self.deletedAt = deletedAt
         self.needsSync = needsSync
+        self.sortIndex = sortIndex
     }
 
     /// Marks a local edit so the next sync pushes it.
@@ -67,7 +71,8 @@ enum TaskActions {
     static func add(_ rawTitle: String, in context: ModelContext) {
         let title = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
-        context.insert(TaskItem(title: String(title.prefix(500))))
+        let existing = (try? context.fetch(FetchDescriptor<TaskItem>())) ?? []
+        context.insert(TaskItem(title: String(title.prefix(500)), sortIndex: TaskOrdering.topIndex(existing)))
     }
 
     static func toggleDone(_ task: TaskItem) {
@@ -84,7 +89,15 @@ enum TaskActions {
             other.touch()
         }
         task.isActive = activate
-        if activate { task.isDone = false }
+        if activate {
+            task.isDone = false
+            task.sortIndex = TaskOrdering.topIndex(tasks)
+        }
+        task.touch()
+    }
+
+    static func moveToTop(_ task: TaskItem, among tasks: [TaskItem]) {
+        task.sortIndex = TaskOrdering.topIndex(tasks)
         task.touch()
     }
 
@@ -92,5 +105,53 @@ enum TaskActions {
         task.isActive = false
         task.deletedAt = .now
         task.touch()
+    }
+}
+
+/// Display order: open tasks first, then done; each by `sortIndex` ascending, newest first on ties.
+@MainActor
+enum TaskOrdering {
+    static func sorted(_ tasks: [TaskItem]) -> [TaskItem] {
+        tasks.sorted { a, b in
+            if a.isDone != b.isDone { return !a.isDone }
+            if a.sortIndex != b.sortIndex { return a.sortIndex < b.sortIndex }
+            return a.createdAt > b.createdAt
+        }
+    }
+
+    /// A sortIndex that sorts above every task in `tasks`.
+    static func topIndex(_ tasks: [TaskItem]) -> Double {
+        (tasks.map(\.sortIndex).min() ?? 1) - 1
+    }
+
+    /// Moves `id` just before `targetID` within its own section (open or done); nil = end of that section.
+    /// Changed tasks are touched so they sync.
+    static func reorder(_ tasks: [TaskItem], moving id: UUID, before targetID: UUID?) {
+        guard id != targetID, let moving = tasks.first(where: { $0.id == id }) else { return }
+        var group = sorted(tasks).filter { $0.isDone == moving.isDone && $0.id != id }
+        let index = targetID.flatMap { target in group.firstIndex { $0.id == target } } ?? group.count
+        let prev = index > 0 ? group[index - 1].sortIndex : nil
+        let next = index < group.count ? group[index].sortIndex : nil
+
+        let value: Double
+        switch (prev, next) {
+        case let (p?, n?): value = (p + n) / 2
+        case let (p?, nil): value = p + 1
+        case let (nil, n?): value = n - 1
+        case (nil, nil): return
+        }
+
+        // Ties (e.g. every task migrated at 0) or a worn-out gap: renumber the section with step 1.
+        if let p = prev, let n = next, !(p < value && value < n) {
+            group.insert(moving, at: index)
+            for (i, task) in group.enumerated() where task.sortIndex != Double(i) {
+                task.sortIndex = Double(i)
+                task.touch()
+            }
+            return
+        }
+        guard moving.sortIndex != value else { return }
+        moving.sortIndex = value
+        moving.touch()
     }
 }

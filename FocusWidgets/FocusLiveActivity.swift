@@ -82,12 +82,16 @@ private struct LockScreenBanner: View {
 
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Text(prompt).foregroundStyle(dim)
-                Text("[ \(state.modeLabel) ]").foregroundStyle(accent).fontWeight(.bold)
+                // On island-less iPhones this banner is the whole Live Activity, so keep the header on
+                // one line on narrow (SE-size) screens: the prompt gives way before the countdown.
+                Text(prompt).foregroundStyle(dim).lineLimit(1).minimumScaleFactor(0.7)
+                Text("[ \(state.modeLabel) ]").foregroundStyle(accent).fontWeight(.bold).lineLimit(1).layoutPriority(1)
                 Spacer()
                 Countdown(state: state)
                     .font(.system(size: 30, weight: .bold, design: .monospaced))
                     .foregroundStyle(text)
+                    .lineLimit(1)
+                    .layoutPriority(2)
             }
             .font(.system(.footnote, design: .monospaced))
 

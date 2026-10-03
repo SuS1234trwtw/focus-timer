@@ -35,7 +35,11 @@ struct SettingsSheet: View {
                     timerRow
                     row(.appearance, "appearance", "paintpalette", appearancePreview)
                     row(.sound, "sound & haptics", "speaker.wave.2", soundPreview)
-                    row(.island, "dynamic island", "capsule", AppModel.shared.live.areActivitiesEnabled ? "on" : "off")
+                    if DeviceCapabilities.hasDynamicIsland {
+                        row(.island, "dynamic island", "capsule", AppModel.shared.live.areActivitiesEnabled ? "on" : "off")
+                    } else {
+                        row(.island, "live activity", "lock", AppModel.shared.live.areActivitiesEnabled ? "lock screen" : "off")
+                    }
                 }
                 .listRowBackground(palette.surface)
                 Section {

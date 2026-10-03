@@ -53,7 +53,7 @@ struct OnboardingView: View {
     enum Step: Int, CaseIterable {
         case welcome, style, color, font, timer, feel, island, sync, extras, done
 
-        var label: String {
+        @MainActor var label: String {
             switch self {
             case .welcome: "hello"
             case .style: "style"
@@ -61,7 +61,7 @@ struct OnboardingView: View {
             case .font: "font"
             case .timer: "timer"
             case .feel: "feel"
-            case .island: "island & alerts"
+            case .island: DeviceCapabilities.hasDynamicIsland ? "island & alerts" : "lock screen & alerts"
             case .sync: "backup & sync"
             case .extras: "extras"
             case .done: "done"
@@ -83,7 +83,7 @@ struct OnboardingView: View {
             }
         }
 
-        var subtitle: String {
+        @MainActor var subtitle: String {
             switch self {
             case .welcome: "a pomodoro timer and task list that looks like your terminal."
             case .style: "the whole app follows it: colours, prompt, wording."
@@ -91,7 +91,9 @@ struct OnboardingView: View {
             case .font: "every style remembers its own font."
             case .timer: "one focus block, then a break. change it any time."
             case .feel: "a key click for every action, a tick every second."
-            case .island: "the timer lives on your lock screen and in the Dynamic Island."
+            case .island: DeviceCapabilities.hasDynamicIsland
+                ? "the timer lives on your lock screen and in the Dynamic Island."
+                : "the timer lives on your lock screen."
             case .sync: "optional. you can set this up later in config."
             case .extras: "optional. both can be linked later in config."
             case .done: "everything here can be changed later in config."
@@ -578,7 +580,8 @@ struct OnboardingView: View {
             Toggle("sounds", isOn: $soundsEnabled)
             Toggle("haptics", isOn: $hapticsEnabled)
             HapticStrengthPicker(palette: palette)
-            Text("sounds follow the silent switch; the end-of-block chime always rings.")
+            EndSoundMenu(palette: palette)
+            Text("sounds follow the silent switch; the end-of-block sound always rings.")
                 .font(palette.mono(12, relativeTo: .caption))
                 .foregroundStyle(palette.dim)
                 .fixedSize(horizontal: false, vertical: true)
@@ -590,7 +593,10 @@ struct OnboardingView: View {
     private var islandPage: some View {
         VStack(alignment: .leading, spacing: 14) {
             card {
-                Label("while a block is running or paused, the Dynamic Island and lock screen show the countdown, your task and a pause button.", systemImage: "capsule.fill")
+                Label(DeviceCapabilities.hasDynamicIsland
+                      ? "while a block is running or paused, the Dynamic Island and lock screen show the countdown, your task and a pause button."
+                      : "while a block is running or paused, the lock screen shows the countdown, your task and a pause button.",
+                      systemImage: DeviceCapabilities.hasDynamicIsland ? "capsule.fill" : "lock.fill")
                     .fixedSize(horizontal: false, vertical: true)
                 Label("when a block ends, a notification rings the chime even if the app is closed.", systemImage: "bell")
                     .fixedSize(horizontal: false, vertical: true)
@@ -623,7 +629,9 @@ struct OnboardingView: View {
                     .buttonStyle(.plain)
                 }
                 if !activitiesEnabled {
-                    Text("live activities are off for focus, so the island stays empty. turn them on in iOS settings → focus → live activities.")
+                    Text(DeviceCapabilities.hasDynamicIsland
+                         ? "live activities are off for focus, so the island stays empty. turn them on in iOS settings → focus → live activities."
+                         : "live activities are off for focus, so the lock screen won't show the timer. turn them on in iOS settings → focus → live activities.")
                         .font(palette.mono(13, relativeTo: .footnote))
                         .foregroundStyle(Color(hex: 0xE0786A))
                         .fixedSize(horizontal: false, vertical: true)

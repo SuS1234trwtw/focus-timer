@@ -36,7 +36,9 @@ struct TaskListView: View {
                     .padding(.vertical, 8)
             }
 
-            ForEach(tasks) { task in
+            let rows = TaskOrdering.sorted(tasks)
+            let lastOpenID = rows.last(where: { !$0.isDone })?.id
+            ForEach(rows) { task in
                 TaskRow(
                     task: task,
                     isActive: task.id == activeID,
@@ -52,9 +54,27 @@ struct TaskListView: View {
                     onDelete: {
                         Feedback.play(.taskDelete)
                         mutate { TaskActions.delete(task) }
+                    },
+                    onMoveToTop: {
+                        mutate { TaskActions.moveToTop(task, among: tasks) }
                     }
                 )
+                .draggable(task.id.uuidString)
+                .dropDestination(for: String.self) { (items: [String], _: CGPoint) in
+                    drop(items, before: task.id)
+                }
                 .transition(.opacity.combined(with: .move(edge: .top)))
+
+                if task.id == lastOpenID {
+                    // Drop here to move a task to the end of the open list.
+                    Color.clear
+                        .frame(height: 8)
+                        .contentShape(.rect)
+                        .dropDestination(for: String.self) { (items: [String], _: CGPoint) in
+                            drop(items, before: nil)
+                        }
+                        .accessibilityHidden(true)
+                }
             }
         }
     }
@@ -93,8 +113,14 @@ struct TaskListView: View {
         inputFocused = true
     }
 
+    private func drop(_ items: [String], before targetID: UUID?) -> Bool {
+        guard let id = items.first.flatMap(UUID.init(uuidString:)), id != targetID else { return false }
+        mutate { TaskOrdering.reorder(tasks, moving: id, before: targetID) }
+        return true
+    }
+
     private func mutate(_ change: () -> Void) {
-        withAnimation(.snappy) { change() }
+        withAnimation(.easeOut(duration: 0.25)) { change() }
         sync.scheduleSync()
     }
 }
@@ -106,6 +132,7 @@ private struct TaskRow: View {
     let onToggleDone: () -> Void
     let onToggleActive: () -> Void
     let onDelete: () -> Void
+    let onMoveToTop: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -155,6 +182,7 @@ private struct TaskRow: View {
         .contextMenu {
             Button(isActive ? "Clear active" : "Set active", systemImage: "scope", action: onToggleActive)
             Button(task.isDone ? "Mark not done" : "Mark done", systemImage: "checkmark", action: onToggleDone)
+            Button("Move to top", systemImage: "arrow.up.to.line", action: onMoveToTop)
             Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
         }
     }

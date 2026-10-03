@@ -8,6 +8,7 @@ struct HeaderView: View {
     let onSettings: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var showHistory = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -38,9 +39,14 @@ struct HeaderView: View {
                 Text(palette.style.label("[ \(mode.label) ]"))
                     .foregroundStyle(palette.accent)
                     .contentTransition(.opacity)
-                Text(palette.style.label("◆ \(sessionsToday) today"))
-                    .foregroundStyle(palette.dim)
-                    .contentTransition(.numericText())
+                Button { showHistory = true } label: {
+                    Text(palette.style.label("◆ \(sessionsToday) today"))
+                        .foregroundStyle(palette.dim)
+                        .contentTransition(.numericText())
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("history, \(sessionsToday) focus blocks today")
                 Spacer()
                 Text(palette.style.label(syncLabel))
                     .foregroundStyle(syncStatus == .offline ? Color(hex: 0xE0786A) : palette.dim)
@@ -49,6 +55,9 @@ struct HeaderView: View {
             .tracking(palette.style.labelTracking)
         }
         .accessibilityElement(children: .contain)
+        .sheet(isPresented: $showHistory) {
+            HistorySheet(palette: palette)
+        }
     }
 
     @ViewBuilder

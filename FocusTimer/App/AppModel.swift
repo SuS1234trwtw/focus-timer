@@ -68,6 +68,7 @@ final class AppModel {
         engine.start()
         guard let endDate = engine.endDate else { return }
         Feedback.play(.start)
+        SoundBoard.play(engine.mode == .focus ? .focusStart : .breakStart)
         let mode = engine.mode
         let title = currentTask?.title
         Task {

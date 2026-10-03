@@ -135,6 +135,10 @@ struct RootView: View {
                 onboardingDone = true
             }
         }
+        .onChange(of: terminalStyle) { _, style in
+            // One place for every style change (Settings or the setup guide): the app icon follows it.
+            AppIconManager.apply(style: style)
+        }
         .onChange(of: onboardingDone) { _, done in
             // Settings → "run setup again" clears the flag.
             guard !done else { return }

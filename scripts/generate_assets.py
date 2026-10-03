@@ -111,6 +111,113 @@ def ui_sounds(folder: Path) -> None:
         write_wav(folder / f"{name}.wav", samples)
 
 
+def chime_samples(length=2.6, decay=0.75, amp=0.32):
+    """The chime's two soft bell notes (E5 then A5) as floats; `chime()` keeps the original 2.6 s take."""
+    notes = [(0.00, 659.25), (0.22, 880.00)]
+    out = []
+    for i in range(int(RATE * length)):
+        t = i / RATE
+        s = 0.0
+        for start, f in notes:
+            if t < start:
+                continue
+            u = t - start
+            env = min(1.0, u / 0.012) * math.exp(-u / decay)
+            s += env * (math.sin(2 * math.pi * f * u)
+                        + 0.25 * math.sin(2 * math.pi * 2 * f * u)
+                        + 0.06 * math.sin(2 * math.pi * 3 * f * u))
+        out.append(amp * s * min(1.0, (length - t) / 0.15))
+    return out
+
+
+def bell(freq, length, decay):
+    """A struck bell: inharmonic partials, the high ones dying first."""
+    partials = [(1.0, 1.0, 1.0), (2.76, 0.35, 0.5), (5.40, 0.12, 0.3), (0.5, 0.25, 1.4)]
+    out = []
+    for i in range(int(RATE * length)):
+        t = i / RATE
+        att = min(1.0, t / 0.004)
+        s = sum(a * math.exp(-t / (decay * d)) * math.sin(2 * math.pi * freq * m * t) for m, a, d in partials)
+        out.append(att * s * min(1.0, (length - t) / 0.12))
+    return out
+
+
+def knock(freq, length, seed):
+    """A wood block: a fast-dying hollow tone plus a tick of noise."""
+    rng = random.Random(seed)
+    out, low = [], 0.0
+    for i in range(int(RATE * length)):
+        t = i / RATE
+        low += 0.5 * (rng.uniform(-1, 1) - low)
+        tone = math.sin(2 * math.pi * freq * t) + 0.4 * math.sin(2 * math.pi * 2.3 * freq * t)
+        out.append(math.exp(-t / 0.035) * tone + 0.3 * math.exp(-t / 0.004) * low)
+    return out
+
+
+def pad(freqs, length):
+    """A soft detuned chord with slow attack and release."""
+    out = []
+    for i in range(int(RATE * length)):
+        t = i / RATE
+        env = min(1.0, t / 0.3) * min(1.0, (length - t) / 0.6)
+        s = sum(math.sin(2 * math.pi * f * t) + math.sin(2 * math.pi * f * 1.004 * t) for f in freqs)
+        out.append(env * s)
+    return out
+
+
+def square(freq, length):
+    """A softened square wave (first three odd harmonics) for 8-bit sounds."""
+    out = []
+    for i in range(int(RATE * length)):
+        t = i / RATE
+        p = 2 * math.pi * freq * t
+        env = min(1.0, t / 0.003) * min(1.0, (length - t) / 0.03)
+        out.append(env * (math.sin(p) + math.sin(3 * p) / 3 + math.sin(5 * p) / 5))
+    return out
+
+
+def loudness(samples, window=0.3):
+    """RMS of the loudest 300 ms, so short and long sounds compare by how they hit."""
+    n = int(RATE * window)
+    sq = [v * v for v in samples]
+    best = acc = sum(sq[:n])
+    for i in range(n, len(sq)):
+        acc += sq[i] - sq[i - n]
+        best = max(best, acc)
+    return math.sqrt(best / min(n, len(sq)))
+
+
+def normalised(samples, target):
+    gain = target / max(loudness(samples), 1e-9)
+    peak = max(abs(v) for v in samples) * gain
+    if peak > 0.95:  # never clip; quieter than target is better than distorted
+        gain *= 0.95 / peak
+    return [v * gain for v in samples]
+
+
+PACK = ["chime", "bell", "beep", "blip", "wood", "softpad", "arcade"]
+
+
+def sound_pack(folder: Path) -> None:
+    """Pickable alert sounds (pack_<name>.wav), 0.3-1.5 s, levelled to the chime. Names match SoundBoard.builtIns."""
+    folder.mkdir(parents=True, exist_ok=True)
+    target = loudness(chime_samples())
+    sounds = {
+        "chime": chime_samples(1.5, 0.42),
+        "bell": bell(784.0, 1.5, 0.45),
+        "beep": blip(880, 0.12) + silence(0.07) + blip(880, 0.12) + silence(0.07) + blip(880, 0.16),
+        "blip": blip(523, 0.08) + blip(659, 0.08) + blip(784, 0.08) + blip(1047, 0.14),
+        "wood": knock(900, 0.18, 7) + knock(1200, 0.28, 8),
+        "softpad": pad([261.63, 329.63, 392.0, 523.25], 1.4),
+        "arcade": square(988, 0.08) + square(1319, 0.32),
+    }
+    assert list(sounds) == PACK
+    for name, samples in sounds.items():
+        length = len(samples) / RATE
+        assert 0.3 <= length <= 1.5, (name, length)
+        write_wav(folder / f"pack_{name}.wav", normalised(samples, target))
+
+
 def png(path: Path, size: int, pixel) -> None:
     rows = bytearray()
     for y in range(size):
@@ -162,5 +269,6 @@ if __name__ == "__main__":
     RES.mkdir(parents=True, exist_ok=True)
     chime(RES / "chime.wav")
     ui_sounds(RES / "Sounds")
-    icon(ROOT / "FocusTimer" / "Resources" / "Assets.xcassets" / "AppIcon.appiconset" / "icon-1024.png")
-    print("wrote chime.wav, Sounds/*.wav and icon-1024.png")
+    sound_pack(RES / "Sounds")
+    # App icons (all styles) come from scripts/generate_icons.py.
+    print("wrote chime.wav, Sounds/*.wav (incl. pack_*.wav) and icon-1024.png")

@@ -65,4 +65,33 @@ if [ ! -f "$DEST/CascadiaMono-Regular.ttf" ]; then
   rm -rf "$TMP"
 fi
 
+# Extracts exact archive paths into $DEST: unzip_fonts <zip url> <label> <path in zip>...
+unzip_fonts() {
+  local url="$1" label="$2"; shift 2
+  local missing=0 f
+  for f in "$@"; do [ -f "$DEST/${f##*/}" ] || missing=1; done
+  [ "$missing" = 1 ] || return 0
+  local tmp; tmp="$(mktemp -d)"
+  if curl -fsSL "$url" -o "$tmp/fonts.zip"; then
+    for f in "$@"; do
+      unzip -j -o -q "$tmp/fonts.zip" "$f" -d "$DEST" && echo "fetched ${f##*/}" || echo "warning: ${f##*/} not in archive" >&2
+    done
+  else
+    echo "warning: could not fetch $label" >&2
+  fi
+  rm -rf "$tmp"
+}
+
+# Victor Mono (Rubjerg Hansen) static TTFs from the repo's release bundle.
+unzip_fonts "https://raw.githubusercontent.com/rubjo/victor-mono/master/public/VictorMonoAll.zip" "Victor Mono"   TTF/VictorMono-Light.ttf TTF/VictorMono-Regular.ttf TTF/VictorMono-Bold.ttf
+
+# Martian Mono (Evil Martians), standard width.
+unzip_fonts "https://github.com/evilmartians/mono/releases/download/v1.1.0/martian-mono-1.1.0-ttf.zip" "Martian Mono"   MartianMono-StdLt.ttf MartianMono-StdRg.ttf MartianMono-StdBd.ttf
+
+# Commit Mono (Eigil Nikolajsen): 400 and 700 only, no light.
+unzip_fonts "https://github.com/eigilnikolajsen/commit-mono/releases/download/v1.143/CommitMono-1.143.zip" "Commit Mono"   CommitMono-1.143/ttfautohint/CommitMono-400-Regular.ttf CommitMono-1.143/ttfautohint/CommitMono-700-Regular.ttf
+
+# Monaspace Neon (GitHub Next): the static release is OTF only, so take the "frozen" TTFs.
+unzip_fonts "https://github.com/githubnext/monaspace/releases/download/v1.400/monaspace-frozen-v1.400.zip" "Monaspace Neon"   "Frozen Fonts/Monaspace Neon/MonaspaceNeonFrozen-Light.ttf"   "Frozen Fonts/Monaspace Neon/MonaspaceNeonFrozen-Regular.ttf"   "Frozen Fonts/Monaspace Neon/MonaspaceNeonFrozen-Bold.ttf"
+
 ls "$DEST"

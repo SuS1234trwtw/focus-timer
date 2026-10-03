@@ -1,30 +1,21 @@
 import AVFoundation
 import UserNotifications
 
-/// Plays the bundled chime while the app is open.
+/// Rings the end-of-block sound while the app is open: the user's pick from Settings → sounds,
+/// falling back to the bundled chime.
 @MainActor
 final class ChimePlayer {
     static let shared = ChimePlayer()
 
-    private var player: AVAudioPlayer?
-
-    func play() {
-        guard let url = Bundle.main.url(forResource: "chime", withExtension: "wav") else { return }
-        do {
-            // Playback so it sounds even with the ring switch on silent; mix so music keeps playing.
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
-            let player = try AVAudioPlayer(contentsOf: url)
-            player.volume = 0.8
-            player.play()
-            self.player = player
-        } catch {
-            // A missing chime should never interrupt the timer.
-        }
+    /// `mode` is the block that just ended. When omitted it's inferred from the engine, which has
+    /// already moved on to the next block by the time a finished one is reported.
+    func play(for mode: TimerMode? = nil) {
+        let ended = mode ?? AppModel.shared.engine.mode.next
+        SoundBoard.play(ended == .focus ? .focusEnd : .breakEnd)
     }
 }
 
-/// Schedules the end-of-block notification so the chime rings even when the app is closed.
+/// Schedules the end-of-block notification so the chosen sound rings even when the app is closed.
 enum TimerNotifier {
     private static let requestID = "pomodoro.end"
 
@@ -48,7 +39,7 @@ enum TimerNotifier {
             content.title = "break's over"
             content.body = "Back to it."
         }
-        content.sound = UNNotificationSound(named: UNNotificationSoundName("chime.wav"))
+        content.sound = SoundBoard.notificationSound(for: mode == .focus ? .focusEnd : .breakEnd)
 
         let interval = max(1, endDate.timeIntervalSinceNow)
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)

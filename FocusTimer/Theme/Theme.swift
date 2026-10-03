@@ -305,7 +305,7 @@ enum Theme {
 
 /// Monospaced terminal fonts the user can pick per style.
 enum TerminalFont: String, CaseIterable, Identifiable {
-    case geist, jetbrains, cascadia, sfMono, menlo, courier, plex, fira, sourceCode, space, ubuntu, dejavu, noto, anonymous, shareTech, vt323
+    case geist, jetbrains, cascadia, sfMono, menlo, courier, plex, fira, sourceCode, space, ubuntu, dejavu, noto, anonymous, shareTech, vt323, commit, martian, victor, monaspace
 
     var id: String { rawValue }
 
@@ -327,6 +327,18 @@ enum TerminalFont: String, CaseIterable, Identifiable {
         case .anonymous: "Anonymous Pro"
         case .shareTech: "Share Tech Mono"
         case .vt323: "VT323"
+        case .commit: "Commit Mono"
+        case .martian: "Martian Mono"
+        case .victor: "Victor Mono"
+        case .monaspace: "Monaspace Neon"
+        }
+    }
+
+    /// Fonts whose ligatures (in `liga` or `calt`) would merge typed characters like `--`.
+    var disablesLigatures: Bool {
+        switch self {
+        case .geist, .jetbrains, .martian, .victor, .monaspace: true
+        default: false
         }
     }
 
@@ -357,6 +369,10 @@ enum TerminalFont: String, CaseIterable, Identifiable {
         case .anonymous: .bundled(light: nil, regular: "AnonymousPro-Regular", bold: "AnonymousPro-Bold")
         case .shareTech: .bundled(light: nil, regular: "ShareTechMono-Regular", bold: nil)
         case .vt323: .bundled(light: nil, regular: "VT323-Regular", bold: nil)
+        case .commit: .bundled(light: nil, regular: "CommitMono-400-Regular", bold: "CommitMono-700-Regular")
+        case .martian: .bundled(light: "MartianMono-StdLt", regular: "MartianMono-StdRg", bold: "MartianMono-StdBd")
+        case .victor: .bundled(light: "VictorMono-Light", regular: "VictorMono-Regular", bold: "VictorMono-Bold")
+        case .monaspace: .bundled(light: "MonaspaceNeonFrozen-Light", regular: "MonaspaceNeonFrozen-Regular", bold: "MonaspaceNeonFrozen-Bold")
         }
     }
 
@@ -377,7 +393,7 @@ enum TerminalFont: String, CaseIterable, Identifiable {
             case .bold: file = bold ?? regular
             }
             guard let name = FontRegistry.postScriptName(forFile: file) else { return fallback }
-            if self == .geist {
+            if disablesLigatures {
                 // Geist Mono joins `--` into one glyph that swallows the space before it
                 // ("focus --start" showed as "focus--start"); a terminal wants every character as typed.
                 return Self.withoutLigatures(name, size: size, relativeTo: style) ?? .custom(name, size: size, relativeTo: style)
@@ -388,14 +404,21 @@ enum TerminalFont: String, CaseIterable, Identifiable {
 }
 
 extension TerminalFont {
-    /// The font with common ligatures turned off, still scaled with Dynamic Type.
+    /// The font with common ligatures and contextual alternates (where most coding fonts keep
+    /// their ligatures) turned off, still scaled with Dynamic Type.
     @MainActor
     static func withoutLigatures(_ name: String, size: CGFloat, relativeTo style: Font.TextStyle) -> Font? {
         let descriptor = UIFontDescriptor(name: name, size: size).addingAttributes([
-            .featureSettings: [[
-                UIFontDescriptor.FeatureKey.type: kLigaturesType,
-                UIFontDescriptor.FeatureKey.selector: kCommonLigaturesOffSelector
-            ]]
+            .featureSettings: [
+                [
+                    UIFontDescriptor.FeatureKey.type: kLigaturesType,
+                    UIFontDescriptor.FeatureKey.selector: kCommonLigaturesOffSelector
+                ],
+                [
+                    UIFontDescriptor.FeatureKey.type: kContextualAlternatesType,
+                    UIFontDescriptor.FeatureKey.selector: kContextualAlternatesOffSelector
+                ]
+            ]
         ])
         let font = UIFont(descriptor: descriptor, size: size)
         guard font.fontName == name else { return nil }

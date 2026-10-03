@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Settings → appearance: terminal style, font, and colours from the colour wheel.
+/// Settings → appearance: terminal style, font, app icon, and colours from the colour wheel.
 struct AppearanceSettingsPage: View {
     let palette: Palette
 
@@ -10,6 +10,7 @@ struct AppearanceSettingsPage: View {
     @AppStorage("focusBackgroundHex") private var focusBackgroundHex = ""
     @AppStorage("restBackgroundHex") private var restBackgroundHex = ""
     @AppStorage(FontChoices.key) private var fontByStyle = ""
+    @AppStorage(AppIconManager.followsStyleKey) private var iconFollowsStyle = true
 
     var body: some View {
         Form {
@@ -21,7 +22,11 @@ struct AppearanceSettingsPage: View {
         .navigationTitle("appearance")
         .navigationBarTitleDisplayMode(.inline)
         // A soft key click for every change made here.
-        .onChange(of: terminalStyle) { Feedback.play(.tap) }
+        .onChange(of: terminalStyle) { Feedback.play(.tap) }  // RootView switches the app icon
+        .onChange(of: iconFollowsStyle) {
+            Feedback.play(.tap)
+            if iconFollowsStyle { AppIconManager.apply(style: terminalStyle) }
+        }
         .onChange(of: fontByStyle) { Feedback.play(.tap) }
         .onChange(of: [focusAccentHex, restAccentHex, focusBackgroundHex, restBackgroundHex]) { Feedback.play(.tap) }
     }
@@ -78,60 +83,36 @@ struct AppearanceSettingsPage: View {
 
     // MARK: Font
 
-    /// The font for the current style; each style remembers its own.
-    private var selectedFont: Binding<TerminalFont> {
-        Binding(
-            get: { FontChoices.font(for: terminalStyle, in: fontByStyle) },
-            set: { fontByStyle = FontChoices.setting($0, for: terminalStyle, in: fontByStyle) }
-        )
-    }
-
     private var fontSection: some View {
-        Section {
-            ForEach(TerminalFont.allCases) { font in
-                fontRow(font)
-            }
-            if selectedFont.wrappedValue != terminalStyle.defaultFont {
-                Button("use \(terminalStyle.defaultFont.name) (default)", systemImage: "arrow.counterclockwise") {
-                    selectedFont.wrappedValue = terminalStyle.defaultFont
+        let current = FontChoices.font(for: terminalStyle, in: fontByStyle)
+        return Section {
+            NavigationLink {
+                FontPickerPage(palette: palette)
+            } label: {
+                LabeledContent {
+                    Text(current.name)
+                        .font(current.font(15, .regular, relativeTo: .body))
+                        .foregroundStyle(palette.dim)
+                        .lineLimit(1)
+                } label: {
+                    Text("font")
                 }
-                .foregroundStyle(palette.accent)
             }
+            Toggle("app icon follows style", isOn: $iconFollowsStyle)
         } header: {
             SettingsHeader("font", palette: palette)
         } footer: {
-            SettingsFooter("Each style keeps its own font. Switch style to set the other one.", palette: palette)
+            NavigationLink {
+                FontsGuidePage(palette: palette)
+            } label: {
+                Text("curious about fonts? check here")
+                    .font(palette.mono(11, relativeTo: .caption))
+                    .foregroundStyle(palette.dim)
+                    .underline()
+            }
+            .buttonStyle(.plain)
         }
         .listRowBackground(palette.surface)
-    }
-
-    private func fontRow(_ font: TerminalFont) -> some View {
-        let selected = font == selectedFont.wrappedValue
-        return Button {
-            selectedFont.wrappedValue = font
-        } label: {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(font.name)
-                        .font(font.font(15, .bold, relativeTo: .body))
-                        .foregroundStyle(selected ? palette.accent : palette.text)
-                    Text("\(terminalStyle.promptHost ?? "")\(terminalStyle.promptPath)\(terminalStyle.promptSymbol)25:00 0Oo1lI")
-                        .font(font.font(12, .regular, relativeTo: .caption))
-                        .foregroundStyle(palette.dim)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 8)
-                if selected {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(palette.accent)
-                }
-            }
-            .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(font.name)
-        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     // MARK: Colours
