@@ -3,181 +3,104 @@
 </p>
 
 <p align="center">
-  <a href="README.md"><img alt="English" src="https://img.shields.io/badge/English-2a2a29?style=for-the-badge"></a>
-  <a href="README.vi.md"><img alt="Tiếng Việt" src="https://img.shields.io/badge/Ti%E1%BA%BFng%20Vi%E1%BB%87t-f5f5f2?style=for-the-badge"></a>
-</p>
-
-<h1 align="center">$ Focus</h1>
-
-<p align="center">
-  <b>Hẹn giờ Pomodoro trông như terminal, và không cho bạn bỏ cuộc dễ dàng.</b><br>
-  Làm cho học sinh: đếm ngược kỳ thi, thi thử, môn học, chuỗi ngày học.
+  <b>Hẹn giờ Pomodoro trông như terminal, và không để bạn bỏ cuộc dễ dàng.</b>
 </p>
 
 <p align="center">
-  <a href="https://github.com/notanlee/focus-timer/releases/latest"><img alt="Bản mới nhất" src="https://img.shields.io/github/v/release/notanlee/focus-timer?style=flat-square&label=t%E1%BA%A3i%20v%E1%BB%81&color=f5f5f2&labelColor=0a0a0a"></a>
-  <a href="https://github.com/notanlee/focus-timer/releases"><img alt="Lượt tải" src="https://img.shields.io/github/downloads/notanlee/focus-timer/total?style=flat-square&label=l%C6%B0%E1%BB%A3t%20t%E1%BA%A3i&color=f5f5f2&labelColor=0a0a0a"></a>
-  <img alt="iOS 26+" src="https://img.shields.io/badge/iOS-26%2B-f5f5f2?style=flat-square&labelColor=0a0a0a">
-  <img alt="Tiếng Việt + English" src="https://img.shields.io/badge/ng%C3%B4n%20ng%E1%BB%AF-VI%20%C2%B7%20EN-f5f5f2?style=flat-square&labelColor=0a0a0a">
-  <a href="https://notanlee.github.io/"><img alt="Website" src="https://img.shields.io/badge/web-notanlee.github.io-f5f5f2?style=flat-square&labelColor=0a0a0a"></a>
+  <a href="https://github.com/notanlee/focus-timer/releases/latest">Tải về</a> &nbsp;·&nbsp;
+  <a href="https://notanlee.github.io/install">Cài đặt</a> &nbsp;·&nbsp;
+  <a href="https://notanlee.github.io/">Trang web</a>
+  <br>
+  <sub><a href="README.md">English</a> &nbsp;|&nbsp; <b>Tiếng Việt</b></sub>
 </p>
 
-<p align="center">
-  <a href="https://github.com/notanlee/focus-timer/releases/latest"><b>Tải IPA</b></a> &nbsp;·&nbsp;
-  <a href="https://notanlee.github.io/install.html"><b>Hướng dẫn cài</b></a> &nbsp;·&nbsp;
-  <a href="https://notanlee.github.io/"><b>Website</b></a> &nbsp;·&nbsp;
-  <a href="https://github.com/notanlee/focus-timer/releases">Ghi chú phát hành</a> &nbsp;·&nbsp;
-  <a href="https://notanlee.github.io/privacy.html">Quyền riêng tư</a> &nbsp;·&nbsp;
-  <a href="https://notanlee.github.io/terms.html">Điều khoản</a>
-</p>
-
-```console
-~/focus $ focus --bắt-đầu
-[ TẬP TRUNG ]  ◆ 3 hôm nay  · đã đồng bộ
-còn 45 ngày · THPT     thi thử · THPT Toán 90'
-            1:29:59
-[███░░░░░░░░░░░░░░░░░]  12%
-> đang tập trung: ôn Toán chương 3   ♪ mưa · 40%
-```
-
-<p align="center">
-  <img src="docs/shots/vi/timer.webp" width="24%" alt="Hẹn giờ">
-  <img src="docs/shots/vi/tasks.webp" width="24%" alt="Việc kèm môn học">
-  <img src="docs/shots/vi/history.webp" width="24%" alt="Thống kê: mục tiêu, chuỗi ngày, môn học">
-  <img src="docs/shots/vi/island.webp" width="24%" alt="Dynamic Island">
-</p>
-
----
-
-## Vì sao chọn $ Focus
-
-- **Trông như terminal thật.** Năm phong cách (Mono, Cozy, PowerShell, CMD, Ubuntu), 20 phông mono; mỗi kiểu có màn hình khởi động, nút bấm và màn hình "sập" riêng.
-- **Bỏ cuộc là chuyện khó.** Giữ nút đặt lại giữa phiên là màn hình báo động hiện ra can ngăn. Vẫn bỏ? Phiên đó được ghi là thất bại.
-- **Làm ra để học.** Đếm ngược THPT, IELTS, SAT, làm bài thi thử bấm giờ, thống kê thời gian theo môn và giữ chuỗi ngày đạt mục tiêu.
-- **Hiện ngay trên màn hình khoá.** Dynamic Island và Live Activity có nút tạm dừng, chuyển chế độ và điều khiển nhạc.
-- **Miễn phí, không quảng cáo, không bắt buộc tài khoản.** Mọi thứ chạy offline; tài khoản (mã 6 số qua email) chỉ để sao lưu và đồng bộ.
-
-## Có gì mới trong 1.14
-
-| | |
-|---|---|
-| **Đếm ngược kỳ thi** | Thêm THPT Quốc gia, IELTS, SAT, VSAT/ĐGNL, cuối kỳ hoặc kỳ thi của bạn. Kỳ gần nhất hiện thành `còn 45 ngày · THPT`, nhắc trước một tuần và một ngày. |
-| **Hẹn giờ thi thử** | Đúng thời lượng đề thật: THPT Toán 90', Văn 120', Anh 60'; IELTS Nghe/Đọc/Viết; SAT. Báo trước 15' và 5' khi sắp hết giờ. |
-| **Môn học & thống kê** | Gắn môn cho việc (Toán, Văn, Anh…). Tab thống kê có mục tiêu mỗi ngày, chuỗi ngày 🔥 và số phút theo môn. |
-| **Âm thanh tập trung** | Mưa, biển, quạt, tiếng ồn trắng/hồng/nâu, tạo ngay trên máy. Vẫn phát khi khoá màn hình và hoà cùng Spotify. |
-| **Giao diện mới** | Thanh tab ở dưới (Hẹn giờ · Việc · Thống kê · Cài đặt), màu dịu và ấm hơn, đổi tên thành **$ Focus**. |
-
-<p align="center">
-  <img src="docs/shots/vi/mocktest.webp" width="24%" alt="Thi thử">
-  <img src="docs/shots/vi/exams.webp" width="24%" alt="Đếm ngược kỳ thi">
-  <img src="docs/shots/vi/subjects.webp" width="24%" alt="Chọn môn học">
-  <img src="docs/shots/en/sounds.webp" width="24%" alt="Âm thanh tập trung">
-</p>
-
-## Mọi thứ app làm được
-
-<table>
-<tr>
-<td width="50%" valign="top">
-
-**Hẹn giờ**
-- Tập trung / nghỉ tới 8 giờ mỗi loại, chọn bằng bánh xe giờ/phút hoặc nút nhanh
-- Preset của riêng bạn, nút ⏱ ngay trên đồng hồ
-- Giữ để tạm dừng; giữ lâu để đặt lại giữa phiên → màn hình báo động
-- Âm thanh và rung Core Haptics cho mọi thao tác
-
-**Việc cần làm**
-- Thêm việc từ thanh ghim ở cuối màn hình
-- ▷ để tập trung, ⋯ để chọn môn / đưa lên đầu / xoá
-- Việc đã xong gom vào "xong (n)", kéo để sắp xếp
-
-**Học tập**
-- Thẻ đếm ngược kỳ thi + lời nhắc
-- Hẹn giờ thi thử có báo sắp hết giờ
-- Môn học, mục tiêu mỗi ngày, chuỗi ngày, số phút theo môn
-- Lịch sử phiên hoàn thành ✓ và bỏ cuộc ✗
-
-</td>
-<td width="50%" valign="top">
-
-**Màn hình khoá & island**
-- Đếm ngược trực tiếp trên Dynamic Island và màn hình khoá
-- Tạm dừng, chuyển tập trung ↔ nghỉ, ⏮ ⏯ ⏭ cho Spotify
-- Chạm dòng bài hát để làm mới
-
-**Chặn xao nhãng**
-- Chặn app gây phân tâm khi tập trung (qua Phím tắt)
-- Bật Không làm phiền khi tập trung, tắt khi nghỉ
-
-**Kết nối**
-- Bài đang phát và điều khiển Spotify
-- Ghi các phiên đã xong vào Google Calendar
-- Sao lưu & đồng bộ bằng mã 6 số qua email
-
-**Tuỳ chỉnh theo ý bạn**
-- 5 phong cách terminal, 20 phông, màu tuỳ chọn, biểu tượng app đi kèm
-- Tiếng Việt và English, dịch toàn bộ
-
-</td>
-</tr>
+<table align="center">
+  <tr>
+    <td align="center"><img src="docs/shots/vi/timer.webp" width="220" alt="Hẹn giờ"><br><sub>hẹn giờ</sub></td>
+    <td align="center"><img src="docs/shots/vi/history.webp" width="220" alt="Thống kê: mục tiêu mỗi ngày, chuỗi ngày, số phút theo môn"><br><sub>thống kê &amp; lịch sử</sub></td>
+    <td align="center"><img src="docs/shots/vi/lock.webp" width="220" alt="Live Activity trên màn hình khoá"><br><sub>màn hình khoá &amp; island</sub></td>
+  </tr>
 </table>
 
-<p align="center">
-  <img src="docs/shots/vi/panic.webp" width="24%" alt="Màn hình báo động">
-  <img src="docs/shots/vi/lock.webp" width="24%" alt="Live Activity trên màn hình khoá">
-  <img src="docs/shots/vi/guard.webp" width="24%" alt="Chặn xao nhãng">
-  <img src="docs/shots/vi/spotify.webp" width="24%" alt="Spotify đang phát">
-</p>
+## App làm được gì
+
+- Phiên tập trung và nghỉ, mỗi phiên tới 8 tiếng, kèm các mẫu giờ của riêng bạn
+- Danh sách việc gọn nhẹ; chạm một lần là bắt đầu tập trung vào việc đó
+- Giữ nút đặt lại giữa phiên là màn hình báo động hiện ra can bạn bỏ cuộc
+- Đếm ngược trực tiếp trên Dynamic Island và màn hình khoá
+- Năm phong cách terminal, 20 phông chữ đơn cách, biểu tượng app đồng bộ theo
+- Tuỳ chọn điều khiển Spotify, ghi vào Google Calendar và đồng bộ (mã 6 số qua email)
+- Miễn phí, không quảng cáo, chạy không cần mạng, đầy đủ tiếng Việt và tiếng Anh
+
+## Có gì mới trong 1.15
+
+- **Lộ trình ôn thi tự động**: nhập ngày thi, Focus lập kế hoạch học mỗi tuần và tự điều chỉnh, dành nhiều thời gian hơn cho môn còn yếu
+- **Nhật ký bỏ cuộc**: khi bỏ dở một phiên, bạn chọn lý do; tab thống kê cho thấy lý do hay gặp nhất, khung giờ dễ bỏ cuộc nhất và một lời khuyên
+- **Hướng dẫn thiết lập và tham quan mới**, dẫn bạn qua từng phần của app trong lần mở đầu tiên
+
+<sub>Từ bản 1.14: đếm ngược kỳ thi, hẹn giờ thi thử, môn học kèm mục tiêu mỗi ngày và chuỗi ngày, âm thanh tập trung, thanh tab ở dưới.</sub>
+
+<details>
+<summary><b>Thêm ảnh chụp màn hình</b></summary>
+<br>
+<table align="center">
+  <tr>
+    <td align="center"><img src="docs/shots/vi/tasks.webp" width="200" alt="Việc cần làm"><br><sub>việc cần làm</sub></td>
+    <td align="center"><img src="docs/shots/vi/panic.webp" width="200" alt="Màn hình báo động"><br><sub>màn hình báo động</sub></td>
+    <td align="center"><img src="docs/shots/vi/exams.webp" width="200" alt="Đếm ngược kỳ thi"><br><sub>đếm ngược kỳ thi</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/shots/vi/mocktest.webp" width="200" alt="Hẹn giờ thi thử"><br><sub>thi thử</sub></td>
+    <td align="center"><img src="docs/shots/vi/subjects.webp" width="200" alt="Chọn môn học"><br><sub>môn học</sub></td>
+    <td align="center"><img src="docs/shots/en/sounds.webp" width="200" alt="Âm thanh tập trung"><br><sub>âm thanh tập trung</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/shots/vi/guard.webp" width="200" alt="Chặn xao nhãng"><br><sub>chặn xao nhãng</sub></td>
+    <td align="center"><img src="docs/shots/vi/spotify.webp" width="200" alt="Spotify đang phát"><br><sub>spotify</sub></td>
+    <td align="center"><img src="docs/shots/vi/calendar.webp" width="200" alt="Google Calendar"><br><sub>google calendar</sub></td>
+  </tr>
+</table>
+</details>
 
 ## Cài đặt
 
-Focus không có trên App Store; bạn cài bằng Apple ID miễn phí (sideload).
+1. Tải tệp `.ipa` mới nhất ở mục [bản phát hành](https://github.com/notanlee/focus-timer/releases/latest).
+2. Cài bằng iloader hoặc SideStore theo [hướng dẫn cài đặt](https://notanlee.github.io/install) (Windows hoặc Mac, mất khoảng 10 phút).
+3. Mở Focus. App sẽ báo khi có bản cập nhật mới.
 
-1. **Tải** file `FocusTimer-<phiên bản>-<build>.ipa` mới nhất ở [Releases](https://github.com/notanlee/focus-timer/releases/latest).
-2. **Cài** bằng iloader hoặc SideStore theo [hướng dẫn từng bước](https://notanlee.github.io/install.html) (Windows hoặc Mac).
-3. **Cập nhật**: app tự báo khi có bản mới. Trong SideStore, thêm nguồn này để cập nhật một chạm:
+Để cập nhật bằng một lần chạm trong SideStore, thêm nguồn này:
 
 ```
 https://github.com/notanlee/focus-timer/releases/latest/download/source.json
 ```
 
-> Cần iOS 26 trở lên. Bản cài bằng Apple ID miễn phí dùng được 7 ngày, sau đó làm mới trong iloader hoặc SideStore.
+<sub>Cần iOS 26 trở lên. Bản cài bằng Apple Account miễn phí dùng được 7 ngày; hãy làm mới bằng iloader hoặc SideStore.</sub>
 
 ## Câu hỏi thường gặp
 
 <details>
 <summary><b>App có miễn phí không?</b></summary>
 
-Có. Không quảng cáo, không đăng ký trả phí, không mua trong app.
+Có. Không quảng cáo, không gói trả phí, không mua trong app.
 </details>
 
 <details>
 <summary><b>Có cần tài khoản không?</b></summary>
 
-Không. Focus chạy đầy đủ offline ở chế độ khách. Tài khoản tuỳ chọn (đăng nhập bằng mã 6 số qua email) sao lưu việc và lịch sử, đồng bộ giữa các máy.
+Không. Focus chạy không cần mạng ở chế độ khách. Tài khoản là tuỳ chọn (mã 6 số qua email, không cần mật khẩu), dùng để sao lưu và đồng bộ việc cần làm và lịch sử.
 </details>
 
 <details>
-<summary><b>App có chạy offline không?</b></summary>
+<summary><b>Sao app không có trên App Store?</b></summary>
 
-Có. Chỉ đồng bộ, Spotify và Google Calendar cần mạng.
-</details>
-
-<details>
-<summary><b>Sao bài hát trên Dynamic Island đôi khi cập nhật chậm?</b></summary>
-
-iOS không cho app cài ngoài chạy nền liên tục. Focus kiểm tra lại Spotify khoảng 30 giây sau khi bạn rời app và mỗi khi bạn bấm nút trên island hoặc chạm dòng bài hát.
+Đây là dự án cá nhân miễn phí, nên bạn tự cài (sideload) bằng Apple Account miễn phí. [Hướng dẫn cài đặt](https://notanlee.github.io/install) có đủ từng bước.
 </details>
 
 <details>
 <summary><b>App thu thập dữ liệu gì?</b></summary>
 
-Chỉ những gì cần để đồng bộ việc và phiên của chính bạn. Kỳ thi, mục tiêu, âm thanh và cài đặt nằm trên máy bạn. Xem [Chính sách quyền riêng tư](https://notanlee.github.io/privacy.html).
+Chỉ những gì cần để đồng bộ việc và phiên của chính bạn. Kỳ thi, mục tiêu, âm thanh và cài đặt nằm trên máy bạn. Xem [Chính sách bảo mật](https://notanlee.github.io/privacy).
 </details>
-
-## Ghi chú phát hành
-
-Mỗi phiên bản đều có trong mục [Releases](https://github.com/notanlee/focus-timer/releases), ghi rõ tính năng mới, thay đổi và lỗi đã sửa, bằng tiếng Anh và tiếng Việt.
 
 ## Góp ý
 
@@ -185,7 +108,7 @@ Mở một [issue](https://github.com/notanlee/focus-timer/issues), hoặc nhắ
 
 ## Bản quyền
 
-Copyright © 2026 An Le. Bảo lưu mọi quyền ([LICENSE](LICENSE), bản tiếng Anh là bản chính thức). Ứng dụng được tải và dùng miễn phí; mã nguồn được giữ riêng tư và không được sao chép, chỉnh sửa hay phân phối lại.
+Bản quyền © 2026 An Le. Bảo lưu mọi quyền ([LICENSE](LICENSE), bản tiếng Anh là bản chính thức). Ứng dụng được tải và dùng miễn phí; mã nguồn được giữ riêng tư và không được sao chép, chỉnh sửa hay phân phối lại. Xem [Điều khoản](https://notanlee.github.io/terms).
 
 ```bash
 creator note:
