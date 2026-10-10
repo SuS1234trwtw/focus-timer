@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://sus1234trwtw.github.io/"><img src="docs/banner.png" alt="$ Focus: a terminal-style Pomodoro timer and study companion for iPhone" width="100%"></a>
+  <a href="https://notanlee.github.io/"><img src="docs/banner.png" alt="$ Focus: a terminal-style Pomodoro timer and study companion for iPhone" width="100%"></a>
 </p>
 
 <p align="center">
@@ -15,20 +15,20 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/SuS1234trwtw/focus-timer/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/SuS1234trwtw/focus-timer?style=flat-square&label=download&color=f5f5f2&labelColor=0a0a0a"></a>
-  <a href="https://github.com/SuS1234trwtw/focus-timer/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/SuS1234trwtw/focus-timer/total?style=flat-square&label=downloads&color=f5f5f2&labelColor=0a0a0a"></a>
+  <a href="https://github.com/notanlee/focus-timer/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/notanlee/focus-timer?style=flat-square&label=download&color=f5f5f2&labelColor=0a0a0a"></a>
+  <a href="https://github.com/notanlee/focus-timer/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/notanlee/focus-timer/total?style=flat-square&label=downloads&color=f5f5f2&labelColor=0a0a0a"></a>
   <img alt="iOS 26+" src="https://img.shields.io/badge/iOS-26%2B-f5f5f2?style=flat-square&labelColor=0a0a0a">
   <img alt="English + Tiếng Việt" src="https://img.shields.io/badge/lang-EN%20%C2%B7%20VI-f5f5f2?style=flat-square&labelColor=0a0a0a">
-  <a href="https://sus1234trwtw.github.io/"><img alt="Website" src="https://img.shields.io/badge/web-sus1234trwtw.github.io-f5f5f2?style=flat-square&labelColor=0a0a0a"></a>
+  <a href="https://notanlee.github.io/"><img alt="Website" src="https://img.shields.io/badge/web-notanlee.github.io-f5f5f2?style=flat-square&labelColor=0a0a0a"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/SuS1234trwtw/focus-timer/releases/latest"><b>Download IPA</b></a> &nbsp;·&nbsp;
-  <a href="https://sus1234trwtw.github.io/install.html"><b>Install guide</b></a> &nbsp;·&nbsp;
-  <a href="https://sus1234trwtw.github.io/"><b>Website</b></a> &nbsp;·&nbsp;
-  <a href="https://github.com/SuS1234trwtw/focus-timer/releases">Release notes</a> &nbsp;·&nbsp;
-  <a href="https://sus1234trwtw.github.io/privacy.html">Privacy</a> &nbsp;·&nbsp;
-  <a href="https://sus1234trwtw.github.io/terms.html">Terms</a>
+  <a href="https://github.com/notanlee/focus-timer/releases/latest"><b>Download IPA</b></a> &nbsp;·&nbsp;
+  <a href="https://notanlee.github.io/install.html"><b>Install guide</b></a> &nbsp;·&nbsp;
+  <a href="https://notanlee.github.io/"><b>Website</b></a> &nbsp;·&nbsp;
+  <a href="https://github.com/notanlee/focus-timer/releases">Release notes</a> &nbsp;·&nbsp;
+  <a href="https://notanlee.github.io/privacy.html">Privacy</a> &nbsp;·&nbsp;
+  <a href="https://notanlee.github.io/terms.html">Terms</a>
 </p>
 
 ```console
@@ -133,12 +133,12 @@ D-45 · THPT            mock test · THPT Toán 90'
 
 Focus isn't on the App Store; you sideload it with a free Apple ID.
 
-1. **Download** the latest `FocusTimer-<version>-<build>.ipa` from [Releases](https://github.com/SuS1234trwtw/focus-timer/releases/latest).
-2. **Install** it with iloader or SideStore by following the [step-by-step install guide](https://sus1234trwtw.github.io/install.html) (Windows or Mac).
+1. **Download** the latest `FocusTimer-<version>-<build>.ipa` from [Releases](https://github.com/notanlee/focus-timer/releases/latest).
+2. **Install** it with iloader or SideStore by following the [step-by-step install guide](https://notanlee.github.io/install.html) (Windows or Mac).
 3. **Stay updated**: the app tells you when a new version is out. In SideStore, add this source for one-tap updates:
 
 ```
-https://github.com/SuS1234trwtw/focus-timer/releases/latest/download/source.json
+https://github.com/notanlee/focus-timer/releases/latest/download/source.json
 ```
 
 > Requires iOS 26 or later. Free Apple ID installs last 7 days, then refresh them in iloader or SideStore.
@@ -172,16 +172,16 @@ iOS doesn't let sideloaded apps run in the background. Focus re-checks Spotify f
 <details>
 <summary><b>What data does it collect?</b></summary>
 
-Only what it needs to sync your own tasks and sessions. Exams, goals, sounds and settings stay on your phone. See the [Privacy Policy](https://sus1234trwtw.github.io/privacy.html).
+Only what it needs to sync your own tasks and sessions. Exams, goals, sounds and settings stay on your phone. See the [Privacy Policy](https://notanlee.github.io/privacy.html).
 </details>
 
 ## Release notes
 
-Every version is listed under [Releases](https://github.com/SuS1234trwtw/focus-timer/releases) with what's new, changed and fixed, in English and Vietnamese.
+Every version is listed under [Releases](https://github.com/notanlee/focus-timer/releases) with what's new, changed and fixed, in English and Vietnamese.
 
 ## Feedback
 
-Open an [issue](https://github.com/SuS1234trwtw/focus-timer/issues), or message **Discord** `notanlee` / **TikTok** [`@notanlee1`](https://www.tiktok.com/@notanlee1).
+Open an [issue](https://github.com/notanlee/focus-timer/issues), or message **Discord** `notanlee` / **TikTok** [`@notanlee1`](https://www.tiktok.com/@notanlee1).
 
 ## License
 

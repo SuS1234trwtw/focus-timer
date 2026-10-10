@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://sus1234trwtw.github.io/"><img src="docs/banner.vi.png" alt="$ Focus: hẹn giờ Pomodoro phong cách terminal và trợ thủ học tập cho iPhone" width="100%"></a>
+  <a href="https://notanlee.github.io/"><img src="docs/banner.vi.png" alt="$ Focus: hẹn giờ Pomodoro phong cách terminal và trợ thủ học tập cho iPhone" width="100%"></a>
 </p>
 
 <p align="center">
@@ -15,20 +15,20 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/SuS1234trwtw/focus-timer/releases/latest"><img alt="Bản mới nhất" src="https://img.shields.io/github/v/release/SuS1234trwtw/focus-timer?style=flat-square&label=t%E1%BA%A3i%20v%E1%BB%81&color=f5f5f2&labelColor=0a0a0a"></a>
-  <a href="https://github.com/SuS1234trwtw/focus-timer/releases"><img alt="Lượt tải" src="https://img.shields.io/github/downloads/SuS1234trwtw/focus-timer/total?style=flat-square&label=l%C6%B0%E1%BB%A3t%20t%E1%BA%A3i&color=f5f5f2&labelColor=0a0a0a"></a>
+  <a href="https://github.com/notanlee/focus-timer/releases/latest"><img alt="Bản mới nhất" src="https://img.shields.io/github/v/release/notanlee/focus-timer?style=flat-square&label=t%E1%BA%A3i%20v%E1%BB%81&color=f5f5f2&labelColor=0a0a0a"></a>
+  <a href="https://github.com/notanlee/focus-timer/releases"><img alt="Lượt tải" src="https://img.shields.io/github/downloads/notanlee/focus-timer/total?style=flat-square&label=l%C6%B0%E1%BB%A3t%20t%E1%BA%A3i&color=f5f5f2&labelColor=0a0a0a"></a>
   <img alt="iOS 26+" src="https://img.shields.io/badge/iOS-26%2B-f5f5f2?style=flat-square&labelColor=0a0a0a">
   <img alt="Tiếng Việt + English" src="https://img.shields.io/badge/ng%C3%B4n%20ng%E1%BB%AF-VI%20%C2%B7%20EN-f5f5f2?style=flat-square&labelColor=0a0a0a">
-  <a href="https://sus1234trwtw.github.io/"><img alt="Website" src="https://img.shields.io/badge/web-sus1234trwtw.github.io-f5f5f2?style=flat-square&labelColor=0a0a0a"></a>
+  <a href="https://notanlee.github.io/"><img alt="Website" src="https://img.shields.io/badge/web-notanlee.github.io-f5f5f2?style=flat-square&labelColor=0a0a0a"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/SuS1234trwtw/focus-timer/releases/latest"><b>Tải IPA</b></a> &nbsp;·&nbsp;
-  <a href="https://sus1234trwtw.github.io/install.html"><b>Hướng dẫn cài</b></a> &nbsp;·&nbsp;
-  <a href="https://sus1234trwtw.github.io/"><b>Website</b></a> &nbsp;·&nbsp;
-  <a href="https://github.com/SuS1234trwtw/focus-timer/releases">Ghi chú phát hành</a> &nbsp;·&nbsp;
-  <a href="https://sus1234trwtw.github.io/privacy.html">Quyền riêng tư</a> &nbsp;·&nbsp;
-  <a href="https://sus1234trwtw.github.io/terms.html">Điều khoản</a>
+  <a href="https://github.com/notanlee/focus-timer/releases/latest"><b>Tải IPA</b></a> &nbsp;·&nbsp;
+  <a href="https://notanlee.github.io/install.html"><b>Hướng dẫn cài</b></a> &nbsp;·&nbsp;
+  <a href="https://notanlee.github.io/"><b>Website</b></a> &nbsp;·&nbsp;
+  <a href="https://github.com/notanlee/focus-timer/releases">Ghi chú phát hành</a> &nbsp;·&nbsp;
+  <a href="https://notanlee.github.io/privacy.html">Quyền riêng tư</a> &nbsp;·&nbsp;
+  <a href="https://notanlee.github.io/terms.html">Điều khoản</a>
 </p>
 
 ```console
@@ -133,12 +133,12 @@ còn 45 ngày · THPT     thi thử · THPT Toán 90'
 
 Focus không có trên App Store; bạn cài bằng Apple ID miễn phí (sideload).
 
-1. **Tải** file `FocusTimer-<phiên bản>-<build>.ipa` mới nhất ở [Releases](https://github.com/SuS1234trwtw/focus-timer/releases/latest).
-2. **Cài** bằng iloader hoặc SideStore theo [hướng dẫn từng bước](https://sus1234trwtw.github.io/install.html) (Windows hoặc Mac).
+1. **Tải** file `FocusTimer-<phiên bản>-<build>.ipa` mới nhất ở [Releases](https://github.com/notanlee/focus-timer/releases/latest).
+2. **Cài** bằng iloader hoặc SideStore theo [hướng dẫn từng bước](https://notanlee.github.io/install.html) (Windows hoặc Mac).
 3. **Cập nhật**: app tự báo khi có bản mới. Trong SideStore, thêm nguồn này để cập nhật một chạm:
 
 ```
-https://github.com/SuS1234trwtw/focus-timer/releases/latest/download/source.json
+https://github.com/notanlee/focus-timer/releases/latest/download/source.json
 ```
 
 > Cần iOS 26 trở lên. Bản cài bằng Apple ID miễn phí dùng được 7 ngày, sau đó làm mới trong iloader hoặc SideStore.
@@ -172,16 +172,16 @@ iOS không cho app cài ngoài chạy nền liên tục. Focus kiểm tra lại 
 <details>
 <summary><b>App thu thập dữ liệu gì?</b></summary>
 
-Chỉ những gì cần để đồng bộ việc và phiên của chính bạn. Kỳ thi, mục tiêu, âm thanh và cài đặt nằm trên máy bạn. Xem [Chính sách quyền riêng tư](https://sus1234trwtw.github.io/privacy.html).
+Chỉ những gì cần để đồng bộ việc và phiên của chính bạn. Kỳ thi, mục tiêu, âm thanh và cài đặt nằm trên máy bạn. Xem [Chính sách quyền riêng tư](https://notanlee.github.io/privacy.html).
 </details>
 
 ## Ghi chú phát hành
 
-Mỗi phiên bản đều có trong mục [Releases](https://github.com/SuS1234trwtw/focus-timer/releases), ghi rõ tính năng mới, thay đổi và lỗi đã sửa, bằng tiếng Anh và tiếng Việt.
+Mỗi phiên bản đều có trong mục [Releases](https://github.com/notanlee/focus-timer/releases), ghi rõ tính năng mới, thay đổi và lỗi đã sửa, bằng tiếng Anh và tiếng Việt.
 
 ## Góp ý
 
-Mở một [issue](https://github.com/SuS1234trwtw/focus-timer/issues), hoặc nhắn **Discord** `notanlee` / **TikTok** [`@notanlee1`](https://www.tiktok.com/@notanlee1).
+Mở một [issue](https://github.com/notanlee/focus-timer/issues), hoặc nhắn **Discord** `notanlee` / **TikTok** [`@notanlee1`](https://www.tiktok.com/@notanlee1).
 
 ## Bản quyền
 
