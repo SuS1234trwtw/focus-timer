@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://sus1234trwtw.github.io/"><img src="docs/banner.png" alt="$ Focus: hẹn giờ Pomodoro phong cách terminal và trợ thủ học tập cho iPhone" width="100%"></a>
+  <a href="https://sus1234trwtw.github.io/"><img src="docs/banner.vi.png" alt="$ Focus: hẹn giờ Pomodoro phong cách terminal và trợ thủ học tập cho iPhone" width="100%"></a>
 </p>
 
 <p align="center">
